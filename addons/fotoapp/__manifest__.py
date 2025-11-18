@@ -19,6 +19,7 @@
     'depends': [
         'base',
         'website',
+        'website_sale',
         'portal',
         'mail',
         'crm',

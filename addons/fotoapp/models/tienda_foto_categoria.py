@@ -26,6 +26,11 @@ class TiendaFotoCategoria(models.Model):
         ('archivado', 'Archivado')
     ], string='Estado', default='borrador')
     website_published = fields.Boolean(string='Publicado en web', default=False)
+    owner_id = fields.Many2one(
+        comodel_name='res.partner',
+        string='Fotógrafo responsable',
+        readonly=True
+    )
     evento_ids = fields.One2many(
         comodel_name='tienda.foto.evento',
         inverse_name='categoria_id',
@@ -50,6 +55,8 @@ class TiendaFotoCategoria(models.Model):
     def create(self, vals_list):
         for vals in vals_list:
             vals['slug'] = self._prepare_slug(vals.get('slug') or vals.get('name'))
+            if not vals.get('owner_id') and self.env.user.partner_id:
+                vals['owner_id'] = self.env.user.partner_id.id
         return super().create(vals_list)
 
     def write(self, vals):
