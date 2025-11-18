@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_tienda_foto_categoria,access_tienda_foto_categoria,model_tienda_foto_categoria,base.group_user,1,1,1,1
+access_tienda_foto_evento,access_tienda_foto_evento,model_tienda_foto_evento,base.group_user,1,1,1,1
+access_tienda_foto_asset,access_tienda_foto_asset,model_tienda_foto_asset,base.group_user,1,1,1,1
+access_tienda_foto_order,access_tienda_foto_order,model_tienda_foto_order,base.group_user,1,1,1,1
+
