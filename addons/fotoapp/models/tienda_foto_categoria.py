@@ -12,6 +12,7 @@ class TiendaFotoCategoria(models.Model):
     description = fields.Text(string='Descripción interna')
     website_description = fields.Html(string='Descripción para el sitio web')
     sequence = fields.Integer(string='Secuencia', default=10)
+    color = fields.Integer(string='Color')
     image_cover = fields.Image(
         string='Imagen de portada',
         max_width=1920,
@@ -20,12 +21,19 @@ class TiendaFotoCategoria(models.Model):
         help='Imagen mostrada en tarjetas de la web.'
     )
     slug = fields.Char(string='Slug', required=True)
+    seo_title = fields.Char(string='Título SEO')
+    seo_description = fields.Char(string='Descripción SEO')
+    website_meta_image = fields.Image(string='Imagen SEO', max_width=1200, max_height=630, attachment=True)
     estado = fields.Selection([
         ('borrador', 'Borrador'),
         ('publicado', 'Publicado'),
         ('archivado', 'Archivado')
     ], string='Estado', default='borrador')
     website_published = fields.Boolean(string='Publicado en web', default=False)
+    display_on_homepage = fields.Boolean(string='Mostrar en home', default=False)
+    portal_sequence = fields.Integer(string='Orden en portal', default=10)
+    is_system_category = fields.Boolean(string='Categoría del sistema', default=False)
+    allowed_plan_ids = fields.Many2many('fotoapp.plan', string='Planes habilitados')
     owner_id = fields.Many2one(
         comodel_name='res.partner',
         string='Fotógrafo responsable',
@@ -41,6 +49,9 @@ class TiendaFotoCategoria(models.Model):
     _sql_constraints = [
         ('slug_unique', 'unique(slug)', 'El slug debe ser único.'),
     ]
+
+    def action_mark_system(self):
+        self.write({'is_system_category': True})
 
     @api.depends('evento_ids')
     def _compute_event_count(self):

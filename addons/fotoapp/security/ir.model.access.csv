@@ -2,5 +2,9 @@ id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_tienda_foto_categoria,access_tienda_foto_categoria,model_tienda_foto_categoria,base.group_user,1,1,1,1
 access_tienda_foto_evento,access_tienda_foto_evento,model_tienda_foto_evento,base.group_user,1,1,1,1
 access_tienda_foto_asset,access_tienda_foto_asset,model_tienda_foto_asset,base.group_user,1,1,1,1
-access_tienda_foto_order,access_tienda_foto_order,model_tienda_foto_order,base.group_user,1,1,1,1
+access_tienda_foto_album,access_tienda_foto_album,model_tienda_foto_album,base.group_user,1,1,1,1
+access_fotoapp_plan,access_fotoapp_plan,model_fotoapp_plan,base.group_user,1,1,1,1
+access_fotoapp_plan_subscription,access_fotoapp_plan_subscription,model_fotoapp_plan_subscription,base.group_user,1,1,1,1
+access_fotoapp_statement,access_fotoapp_statement,model_fotoapp_photographer_statement,base.group_user,1,1,1,1
+access_fotoapp_statement_line,access_fotoapp_statement_line,model_fotoapp_photographer_statement_line,base.group_user,1,0,0,0
 

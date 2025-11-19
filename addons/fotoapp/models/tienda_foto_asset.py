@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import logging
+import secrets
 from io import BytesIO
 
 from odoo import api, fields, models, _
@@ -13,6 +14,7 @@ _logger = logging.getLogger(__name__)
 class TiendaFotoAsset(models.Model):
     _name = 'tienda.foto.asset'
     _description = 'Activos de fotos'
+    _inherit = ['mail.thread', 'mail.activity.mixin']
     _order = 'sequence, id desc'
 
     evento_id = fields.Many2one(
@@ -27,6 +29,12 @@ class TiendaFotoAsset(models.Model):
         store=True,
         readonly=True
     )
+    plan_subscription_id = fields.Many2one(
+        comodel_name='fotoapp.plan.subscription',
+        related='evento_id.plan_subscription_id',
+        store=True,
+        string='Suscripción'
+    )
     numero_dorsal = fields.Char(string='Número de Dorsal')
     sequence = fields.Integer(string='Secuencia', default=10)
     imagen_original = fields.Image(string='Imagen Original', required=True, attachment=True)
@@ -38,6 +46,37 @@ class TiendaFotoAsset(models.Model):
     checksum = fields.Char(string='Checksum', readonly=True)
     download_token = fields.Char(string='Token de descarga')
     batch_id = fields.Char(string='Lote de subida')
+    album_ids = fields.Many2many(
+        comodel_name='tienda.foto.album',
+        relation='tienda_foto_album_asset_rel',
+        column1='asset_id',
+        column2='album_id',
+        string='Álbumes'
+    )
+    lifecycle_state = fields.Selection([
+        ('draft', 'Borrador'),
+        ('pending_review', 'Pendiente de revisión'),
+        ('ready_for_sale', 'Lista para vender'),
+        ('published', 'Publicada'),
+        ('sold', 'Vendida'),
+        ('delivered', 'Entregada'),
+        ('archived', 'Archivada')
+    ], string='Estado', default='draft', tracking=True)
+    portal_token = fields.Char(string='Token portal', copy=False)
+    portal_url = fields.Char(string='URL portal', compute='_compute_portal_url')
+    sale_order_line_ids = fields.Many2many('sale.order.line', string='Líneas de venta')
+    sale_count = fields.Integer(string='Ventas totales', compute='_compute_sales_metrics', store=True)
+    sale_total_amount = fields.Monetary(string='Ventas acumuladas', currency_field='currency_id', compute='_compute_sales_metrics', store=True)
+    last_sale_date = fields.Datetime(string='Última venta', compute='_compute_sales_metrics', store=True)
+    statement_line_ids = fields.One2many('fotoapp.photographer.statement.line', 'asset_id', string='Liquidaciones')
+    file_size_bytes = fields.Integer(string='Tamaño de archivo', readonly=True)
+    digital_download_url = fields.Char(string='URL descarga directa')
+    download_limit = fields.Integer(string='Descargas permitidas', default=0, help='0 significa ilimitado.')
+    download_count = fields.Integer(string='Descargas realizadas', default=0)
+    last_download_date = fields.Datetime(string='Última descarga')
+    _sql_constraints = [
+        ('foto_portal_token_unique', 'unique(portal_token)', 'El token de la foto debe ser único.'),
+    ]
 
     def _compute_checksum(self, b64_image): 
         # Sirve para detectar duplicados o verificar integridad.
@@ -46,6 +85,14 @@ class TiendaFotoAsset(models.Model):
             return False
         raw = base64.b64decode(b64_image)
         return hashlib.sha256(raw).hexdigest()
+
+    def _compute_file_size(self, b64_image):
+        if not b64_image:
+            return 0
+        try:
+            return len(base64.b64decode(b64_image))
+        except Exception:
+            return 0
     
     @api.model_create_multi
     def create(self, vals_list):
@@ -53,9 +100,13 @@ class TiendaFotoAsset(models.Model):
             image_b64 = vals.get('imagen_original')
             if not image_b64:
                 continue
+            size_bytes = self._compute_file_size(image_b64)
+            if size_bytes:
+                vals['file_size_bytes'] = size_bytes
             checksum = self._compute_checksum(image_b64)
             if checksum:
                 vals['checksum'] = checksum
+            vals.setdefault('portal_token', self._generate_portal_token())
             self._generate_watermark(vals)
         return super().create(vals_list)
     
@@ -128,9 +179,14 @@ class TiendaFotoAsset(models.Model):
     def write(self, vals):
         if 'imagen_original' in vals:
             vals = self._generate_watermark(vals)
+            size_bytes = self._compute_file_size(vals['imagen_original'])
+            if size_bytes:
+                vals['file_size_bytes'] = size_bytes
             checksum = self._compute_checksum(vals['imagen_original'])
             if checksum:
                 vals['checksum'] = checksum
+        if vals.get('portal_token') is False:
+            vals['portal_token'] = self._generate_portal_token()
         return super().write(vals)
 
     @api.constrains('precio')
@@ -138,5 +194,22 @@ class TiendaFotoAsset(models.Model):
         for record in self:
             if record.precio <= 0:
                 raise ValidationError(_('El precio debe ser mayor a cero.'))
+
+    @api.depends('sale_order_line_ids.price_total', 'sale_order_line_ids.order_id.date_order')
+    def _compute_sales_metrics(self):
+        for asset in self:
+            asset.sale_count = len(asset.sale_order_line_ids)
+            asset.sale_total_amount = sum(asset.sale_order_line_ids.mapped('price_total'))
+            dates = asset.sale_order_line_ids.mapped('order_id.date_order')
+            asset.last_sale_date = max(dates) if dates else False
+
+    @api.depends('portal_token')
+    def _compute_portal_url(self):
+        base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
+        for asset in self:
+            asset.portal_url = f"{base_url}/fotoapp/photo/{asset.portal_token}" if asset.portal_token else False
+
+    def _generate_portal_token(self):
+        return secrets.token_urlsafe(16)
     
 
