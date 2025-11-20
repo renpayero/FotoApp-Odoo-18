@@ -12,16 +12,10 @@
 
           <section class="s_cards pt32 pb48">
             <div class="container">
-              <t t-set="can_create_category" t-value="(not request.env.user._is_public()) and request.env.user.partner_id.is_photographer"/>
               <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                 <h2 class="h3 mb-0">Categorías</h2>
                 <div class="d-flex align-items-center gap-2">
                   <span class="text-muted" t-esc="len(categories)"/> categorías publicadas
-                  <t t-if="can_create_category">
-                    <a href="/mi/galeria/categorias/nueva" class="btn btn-primary btn-sm">
-                      Nueva categoría
-                    </a>
-                  </t>
                 </div>
               </div>
               <div class="row">
@@ -213,7 +207,6 @@
               <nav aria-label="breadcrumb" class="mb-3">
                 <ol class="breadcrumb">
                   <li class="breadcrumb-item"><a href="/galeria">Galería</a></li>
-                  <li class="breadcrumb-item active" aria-current="page">Nueva categoría</li>
                 </ol>
               </nav>
               <div class="card shadow-sm">
@@ -271,9 +264,686 @@
           <section class="py-5">
             <div class="container">
               <div class="alert alert-warning" role="alert">
-                Debes ser un fotógrafo habilitado para crear categorías. Pide acceso al administrador si crees que esto es un error.
+                Debes ser un fotógrafo habilitado para acceder a este panel. Pide acceso al administrador si crees que esto es un error.
               </div>
-              <a class="btn btn-primary" href="/galeria">Volver a la galería</a>
+              <div class="d-flex gap-2">
+                <a class="btn btn-primary" href="/galeria">Volver a la galería</a>
+                <a class="btn btn-outline-secondary" href="/web/login">Ingresar con otra cuenta</a>
+              </div>
+            </div>
+          </section>
+        </div>
+      </t>
+    </template>
+
+    <template id="photographer_portal_nav" name="Navegación portal fotógrafo">
+      <t t-set="portal_active" t-value="active_menu or ''"/>
+      <div class="nav nav-pills mb-4">
+        <a t-attf-class="nav-link #{'active' if portal_active == 'dashboard' else ''}" href="/mi/fotoapp">Resumen</a>
+        <a t-attf-class="nav-link #{'active' if portal_active == 'events' else ''}" href="/mi/fotoapp/eventos">Eventos</a>
+        <a t-attf-class="nav-link #{'active' if portal_active == 'events_new' else ''}" href="/mi/fotoapp/eventos/nuevo">Nuevo evento</a>
+        <a t-attf-class="nav-link #{'active' if portal_active == 'archived' else ''}" href="/mi/fotoapp/fotos/archivadas">Fotos archivadas</a>
+      </div>
+    </template>
+
+    <template id="photographer_dashboard" name="Panel del fotógrafo">
+      <t t-call="website.layout">
+        <div id="wrap" class="oe_structure">
+          <section class="py-5 bg-200">
+            <div class="container">
+              <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+                <div>
+                  <h1 class="h3 mb-1">Hola, <t t-esc="partner.name"/></h1>
+                  <p class="text-muted mb-0">Gestioná tus eventos, álbumes y fotos desde un solo lugar.</p>
+                </div>
+                <div class="d-flex gap-2">
+                  <a class="btn btn-primary" href="/mi/fotoapp/eventos/nuevo">Crear evento</a>
+                  <a class="btn btn-outline-secondary" href="/mi/fotoapp/fotos/archivadas">Fotos archivadas</a>
+                </div>
+              </div>
+              <t t-call="fotoapp.photographer_portal_nav"/>
+              <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                  <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                      <p class="text-muted mb-1">Eventos totales</p>
+                      <h3 class="h2 mb-0" t-esc="stats.get('total_events', 0)"/>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                      <p class="text-muted mb-1">Eventos publicados</p>
+                      <h3 class="h2 mb-0" t-esc="stats.get('published_events', 0)"/>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                      <p class="text-muted mb-1">Álbumes</p>
+                      <h3 class="h2 mb-0" t-esc="stats.get('albums', 0)"/>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                      <p class="text-muted mb-1">Fotos subidas</p>
+                      <h3 class="h2 mb-0" t-esc="stats.get('photos', 0)"/>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="card shadow-sm">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="h5 mb-0">Últimos eventos</h2>
+                    <a class="btn btn-sm btn-outline-primary" href="/mi/fotoapp/eventos/nuevo">Nuevo evento</a>
+                  </div>
+                  <t t-if="events">
+                    <div class="table-responsive">
+                      <table class="table align-middle mb-0">
+                        <thead>
+                          <tr>
+                            <th>Nombre</th>
+                            <th>Fecha</th>
+                            <th>Estado</th>
+                            <th>Categoría</th>
+                            <th>Álbumes</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr t-foreach="events" t-as="event">
+                            <td>
+                              <strong t-esc="event.name"/>
+                            </td>
+                            <td t-esc="event.fecha and event.fecha.strftime('%d/%m/%Y %H:%M')"/>
+                            <td>
+                              <span class="badge text-uppercase" t-attf-class="badge bg-#{'success' if event.estado == 'publicado' else ('secondary' if event.estado == 'borrador' else 'warning')}">
+                                <t t-esc="event.estado"/>
+                              </span>
+                            </td>
+                            <td t-esc="event.categoria_id.name"/>
+                            <td t-esc="len(event.album_ids)"/>
+                            <td class="text-end">
+                              <a class="btn btn-sm btn-outline-secondary" t-attf-href="/mi/fotoapp/evento/{ event.id }">Administrar</a>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </t>
+                  <t t-if="not events">
+                    <p class="text-muted mb-0">Todavía no creaste eventos. Usa el botón “Nuevo evento” para empezar.</p>
+                  </t>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </t>
+    </template>
+
+    <template id="photographer_event_list" name="Eventos del fotógrafo">
+      <t t-call="website.layout">
+        <div id="wrap" class="oe_structure">
+          <section class="py-5">
+            <div class="container">
+              <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <div>
+                  <h1 class="h4 mb-1">Eventos</h1>
+                  <p class="text-muted mb-0">Gestioná tus coberturas, creá álbumes y subí fotos.</p>
+                </div>
+                <div class="d-flex gap-2">
+                  <a class="btn btn-outline-secondary" href="/mi/fotoapp">Volver al resumen</a>
+                  <a class="btn btn-primary" href="/mi/fotoapp/eventos/nuevo">Nuevo evento</a>
+                </div>
+              </div>
+              <t t-call="fotoapp.photographer_portal_nav"/>
+
+              <div class="d-flex flex-wrap gap-2 mb-3">
+                <t t-set="filter_map" t-value="[
+                  ('all', 'Todos'),
+                  ('borrador', 'Borradores'),
+                  ('publicado', 'Publicados'),
+                  ('archivado', 'Archivados'),
+                ]"/>
+                <a t-foreach="filter_map" t-as="flt"
+                   t-attf-class="badge rounded-pill #{'bg-primary text-white' if state_filter == flt[0] else 'bg-light text-dark'}"
+                   t-att-href="'/mi/fotoapp/eventos%s' % ('?estado=' + flt[0] if flt[0] != 'all' else '')">
+                  <t t-esc="flt[1]"/> (<t t-esc="stats.get(flt[0], 0)"/>)
+                </a>
+              </div>
+
+              <div class="card shadow-sm">
+                <div class="card-body">
+                  <form method="get" class="row g-3 align-items-end mb-4">
+                    <div class="col-md-6">
+                      <label class="form-label">Buscar</label>
+                      <input type="text" class="form-control" name="search" placeholder="Nombre del evento o categoría" t-att-value="search"/>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label">Estado</label>
+                      <select class="form-select" name="estado">
+                        <option value="all" t-att-selected="'selected' if state_filter == 'all' else None">Todos</option>
+                        <option value="borrador" t-att-selected="'selected' if state_filter == 'borrador' else None">Borrador</option>
+                        <option value="publicado" t-att-selected="'selected' if state_filter == 'publicado' else None">Publicado</option>
+                        <option value="archivado" t-att-selected="'selected' if state_filter == 'archivado' else None">Archivado</option>
+                      </select>
+                    </div>
+                    <div class="col-md-3 d-flex gap-2">
+                      <button type="submit" class="btn btn-primary flex-fill">Aplicar</button>
+                      <a class="btn btn-outline-secondary flex-fill" href="/mi/fotoapp/eventos">Limpiar</a>
+                    </div>
+                  </form>
+
+                  <t t-if="events">
+                    <div class="table-responsive">
+                      <table class="table align-middle">
+                        <thead>
+                          <tr>
+                            <th>Evento</th>
+                            <th>Fecha</th>
+                            <th>Categoría</th>
+                            <th>Álbumes</th>
+                            <th>Fotos</th>
+                            <th>Estado</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr t-foreach="events" t-as="event">
+                            <td>
+                              <strong t-esc="event.name"/>
+                              <div class="text-muted small">Creado el <t t-esc="event.create_date.strftime('%d/%m/%Y') if event.create_date else '-'"/></div>
+                            </td>
+                            <td t-esc="event.fecha and event.fecha.strftime('%d/%m/%Y %H:%M') or '-'"/>
+                            <td t-esc="event.categoria_id.name"/>
+                            <td><t t-esc="len(event.album_ids)"/></td>
+                            <td><t t-esc="event.foto_count or 0"/></td>
+                            <td>
+                              <span class="badge text-uppercase" t-attf-class="badge bg-#{'success' if event.estado == 'publicado' else ('secondary' if event.estado == 'borrador' else 'dark')}">
+                                <t t-esc="event.estado"/>
+                              </span>
+                            </td>
+                            <td class="text-end">
+                              <div class="btn-group">
+                                <a class="btn btn-outline-secondary btn-sm" t-attf-href="/mi/fotoapp/evento/{ event.id }">Gestionar</a>
+                                <a class="btn btn-outline-primary btn-sm" t-attf-href="/mi/fotoapp/album/{ event.album_ids[:1].id }" t-if="event.album_ids">Primer álbum</a>
+                              </div>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </t>
+                  <t t-if="not events">
+                    <div class="text-center text-muted py-5">
+                      No encontramos eventos con los filtros actuales.
+                      <div class="mt-3">
+                        <a class="btn btn-primary" href="/mi/fotoapp/eventos/nuevo">Crear tu primer evento</a>
+                      </div>
+                    </div>
+                  </t>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </t>
+    </template>
+
+    <template id="photographer_event_create" name="Crear evento">
+      <t t-call="website.layout">
+        <div id="wrap" class="oe_structure">
+          <section class="py-5">
+            <div class="container">
+              <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <div>
+                  <h1 class="h4 mb-1">Nuevo evento</h1>
+                  <p class="text-muted mb-0">Completa la información para publicar tu cobertura.</p>
+                </div>
+                <a class="btn btn-secondary" href="/mi/fotoapp">Volver</a>
+              </div>
+              <t t-call="fotoapp.photographer_portal_nav"/>
+              <t t-if="errors">
+                <div class="alert alert-danger" role="alert">
+                  <ul class="mb-0">
+                    <li t-foreach="errors" t-as="error" t-esc="error"/>
+                  </ul>
+                </div>
+              </t>
+              <form method="post" enctype="multipart/form-data" class="card shadow-sm">
+                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                <div class="card-body">
+                  <div class="row g-4">
+                    <div class="col-md-6">
+                      <label class="form-label">Nombre *</label>
+                      <input type="text" name="name" class="form-control" t-att-value="default.get('name')" required="required"/>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Categoría *</label>
+                      <select class="form-select" name="categoria_id" required="required">
+                        <option value="">Seleccione</option>
+                        <option t-foreach="categories" t-as="category" t-att-value="category.id" t-att-selected="'selected' if str(category.id) == str(default.get('categoria_id')) else None">
+                          <t t-esc="category.name"/>
+                        </option>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Fecha *</label>
+                      <input type="datetime-local" name="fecha" class="form-control" t-att-value="default.get('fecha')" required="required"/>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Imagen de portada</label>
+                      <input type="file" class="form-control" name="image_cover" accept="image/*"/>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label">Ciudad</label>
+                      <input type="text" name="ciudad" class="form-control" t-att-value="default.get('ciudad')"/>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label">Provincia/Estado</label>
+                      <input type="text" name="estado_provincia" class="form-control" t-att-value="default.get('estado_provincia')"/>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label">País</label>
+                      <select class="form-select" name="pais_id">
+                        <option value="">Seleccione</option>
+                        <option t-foreach="countries" t-as="country" t-att-value="country.id" t-att-selected="'selected' if str(country.id) == str(default.get('pais_id')) else None">
+                          <t t-esc="country.name"/>
+                        </option>
+                      </select>
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label">Descripción</label>
+                      <textarea class="form-control" rows="4" name="descripcion"><t t-esc="default.get('descripcion')"/></textarea>
+                    </div>
+                  </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between">
+                  <a class="btn btn-secondary" href="/mi/fotoapp">Cancelar</a>
+                  <button type="submit" class="btn btn-primary">Guardar evento</button>
+                </div>
+              </form>
+            </div>
+          </section>
+        </div>
+      </t>
+    </template>
+
+    <template id="photographer_event_detail" name="Detalle de evento (fotógrafo)">
+      <t t-call="website.layout">
+        <div id="wrap" class="oe_structure">
+          <section class="py-5">
+            <div class="container">
+              <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <div>
+                  <h1 class="h4 mb-1" t-esc="event.name"/>
+                  <p class="text-muted mb-0">Creado el <t t-esc="event.create_date.strftime('%d/%m/%Y') if event.create_date else ''"/></p>
+                </div>
+                <a class="btn btn-secondary" href="/mi/fotoapp">Volver</a>
+              </div>
+              <t t-call="fotoapp.photographer_portal_nav"/>
+              <t t-if="errors">
+                <div class="alert alert-danger" role="alert">
+                  <ul class="mb-0">
+                    <li t-foreach="errors" t-as="error" t-esc="error"/>
+                  </ul>
+                </div>
+              </t>
+              <t t-if="album_error">
+                <div class="alert alert-danger" role="alert" t-esc="album_error"/>
+              </t>
+              <div class="row g-4">
+                <div class="col-lg-8">
+                  <form method="post" enctype="multipart/form-data" class="card shadow-sm">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <input type="hidden" name="action" value="update_event"/>
+                    <div class="card-body">
+                      <h2 class="h5 mb-3">Datos del evento</h2>
+                      <div class="row g-3">
+                        <div class="col-md-6">
+                          <label class="form-label">Nombre</label>
+                          <input type="text" name="name" class="form-control" t-att-value="event.name" required="required"/>
+                        </div>
+                        <div class="col-md-6">
+                          <label class="form-label">Categoría</label>
+                          <select class="form-select" name="categoria_id" required="required">
+                            <option value="">Seleccione</option>
+                            <option t-foreach="categories" t-as="category" t-att-value="category.id" t-att-selected="'selected' if category.id == event.categoria_id.id else None">
+                              <t t-esc="category.name"/>
+                            </option>
+                          </select>
+                        </div>
+                        <div class="col-md-6">
+                          <label class="form-label">Fecha</label>
+                          <input type="datetime-local" name="fecha" class="form-control"
+                                 t-att-value="event.fecha and event.fecha.strftime('%Y-%m-%dT%H:%M:%S')" required="required"/>
+                        </div>
+                        <div class="col-md-6">
+                          <label class="form-label">Portada</label>
+                          <input type="file" class="form-control" name="image_cover" accept="image/*"/>
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label">Ciudad</label>
+                          <input type="text" class="form-control" name="ciudad" t-att-value="event.ciudad"/>
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label">Provincia/Estado</label>
+                          <input type="text" class="form-control" name="estado_provincia" t-att-value="event.estado_provincia"/>
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label">País</label>
+                          <select class="form-select" name="pais_id">
+                            <option value="">Seleccione</option>
+                            <option t-foreach="countries" t-as="country" t-att-value="country.id" t-att-selected="'selected' if country.id == event.pais_id.id else None">
+                              <t t-esc="country.name"/>
+                            </option>
+                          </select>
+                        </div>
+                        <div class="col-12">
+                          <label class="form-label">Descripción</label>
+                          <textarea class="form-control" rows="4" name="descripcion"><t t-esc="event.descripcion"/></textarea>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="card-footer d-flex justify-content-between">
+                      <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                      <div class="btn-group">
+                        <button type="submit" name="action" value="publish_event" class="btn btn-success">Publicar</button>
+                        <button type="submit" name="action" value="archive_event" class="btn btn-outline-warning">Archivar</button>
+                        <button type="submit" name="action" value="delete_event" class="btn btn-outline-danger" onclick="return confirm('¿Eliminar el evento y su contenido?');">Eliminar</button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+                <div class="col-lg-4">
+                  <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                      <h2 class="h6 text-uppercase text-muted">Estado actual</h2>
+                      <p class="h4" t-esc="event.estado"/>
+                      <p class="mb-0 text-muted">Álbumes: <strong t-esc="len(albums)"/></p>
+                      <p class="mb-0 text-muted">Fotos publicadas: <strong t-esc="event.foto_count"/></p>
+                    </div>
+                  </div>
+                  <div class="card shadow-sm">
+                    <div class="card-body">
+                      <h2 class="h6 mb-3">Crear álbum</h2>
+                      <form method="post" action="" t-att-action="'/mi/fotoapp/evento/%s/album/nuevo' % event.id">
+                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                        <div class="mb-3">
+                          <label class="form-label">Nombre del álbum *</label>
+                          <input type="text" class="form-control" name="name" required="required"/>
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label">Email del cliente (opcional)</label>
+                          <input type="email" class="form-control" name="customer_email"/>
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label">Fecha de expiración</label>
+                          <input type="date" class="form-control" name="expiration_date"/>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Crear álbum</button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card shadow-sm mt-4">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="h5 mb-0">Álbumes</h2>
+                  </div>
+                  <t t-if="albums">
+                    <div class="table-responsive">
+                      <table class="table align-middle">
+                        <thead>
+                          <tr>
+                            <th>Nombre</th>
+                            <th>Estado</th>
+                            <th>Fotos</th>
+                            <th>Cliente</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr t-foreach="albums" t-as="album">
+                            <td><strong t-esc="album.name"/></td>
+                            <td>
+                              <span class="badge text-uppercase" t-attf-class="badge bg-#{'success' if album.state == 'published' else 'secondary'}">
+                                <t t-esc="album.state"/>
+                              </span>
+                            </td>
+                            <td t-esc="album.asset_count"/>
+                            <td>
+                              <t t-if="album.customer_email" t-esc="album.customer_email"/>
+                              <t t-if="not album.customer_email">—</t>
+                            </td>
+                            <td class="text-end">
+                              <a class="btn btn-outline-primary btn-sm" t-attf-href="/mi/fotoapp/album/{ album.id }">Gestionar</a>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </t>
+                  <t t-if="not albums">
+                    <p class="text-muted mb-0">Aún no hay álbumes asociados a este evento.</p>
+                  </t>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </t>
+    </template>
+
+    <template id="photographer_album_detail" name="Detalle de álbum (fotógrafo)">
+      <t t-call="website.layout">
+        <div id="wrap" class="oe_structure">
+          <section class="py-5">
+            <div class="container">
+              <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <div>
+                  <h1 class="h4 mb-1" t-esc="album.name"/>
+                  <p class="text-muted mb-0">Evento: <t t-esc="album.event_id.name"/></p>
+                </div>
+                <a class="btn btn-secondary" t-attf-href="/mi/fotoapp/evento/{ album.event_id.id }">Volver al evento</a>
+              </div>
+              <t t-call="fotoapp.photographer_portal_nav"/>
+              <t t-if="errors">
+                <div class="alert alert-danger" role="alert">
+                  <ul class="mb-0">
+                    <li t-foreach="errors" t-as="error" t-esc="error"/>
+                  </ul>
+                </div>
+              </t>
+              <div class="row g-4">
+                <div class="col-lg-4">
+                  <form method="post" class="card shadow-sm mb-4">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <input type="hidden" name="action" value="update_album"/>
+                    <div class="card-body">
+                      <h2 class="h6 mb-3">Configurar álbum</h2>
+                      <div class="mb-3">
+                        <label class="form-label">Nombre</label>
+                        <input type="text" class="form-control" name="name" t-att-value="album.name" required="required"/>
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label">Límite de descargas</label>
+                        <input type="number" class="form-control" name="download_limit" min="0" t-att-value="album.download_limit"/>
+                        <small class="text-muted">0 = ilimitado.</small>
+                      </div>
+                      <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" name="is_private" id="album_private" t-att-checked="'checked' if album.is_private else None"/>
+                        <label class="form-check-label" for="album_private">Álbum privado</label>
+                      </div>
+                      <button type="submit" class="btn btn-primary w-100">Guardar</button>
+                    </div>
+                  </form>
+
+                  <form method="post" class="card shadow-sm mb-4">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <div class="card-body">
+                      <h2 class="h6 mb-3">Acciones rápidas</h2>
+                      <div class="d-grid gap-2">
+                        <button type="submit" name="action" value="archive_album" class="btn btn-outline-warning">Archivar álbum</button>
+                        <button type="submit" name="action" value="delete_album" class="btn btn-outline-danger" onclick="return confirm('¿Eliminar el álbum y desvincular sus fotos?');">Eliminar álbum</button>
+                      </div>
+                    </div>
+                  </form>
+
+                  <form method="post" enctype="multipart/form-data" class="card shadow-sm">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <input type="hidden" name="action" value="upload_photo"/>
+                    <div class="card-body">
+                      <h2 class="h6 mb-3">Subir nueva foto</h2>
+                      <div class="mb-3">
+                        <label class="form-label">Número / Identificador</label>
+                        <input type="text" class="form-control" name="numero_dorsal"/>
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label">Precio *</label>
+                        <input type="number" step="0.01" min="0" class="form-control" name="price" required="required"/>
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label">Archivo *</label>
+                        <input type="file" class="form-control" name="image_file" accept="image/*" required="required"/>
+                      </div>
+                      <button type="submit" class="btn btn-primary w-100">Subir foto</button>
+                    </div>
+                  </form>
+                </div>
+                <div class="col-lg-8">
+                  <div class="card shadow-sm">
+                    <div class="card-body">
+                      <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h2 class="h5 mb-0">Fotos del álbum</h2>
+                        <span class="text-muted" t-esc="len(photos)"/> fotos
+                      </div>
+                      <t t-if="photos">
+                        <div class="table-responsive">
+                          <table class="table align-middle">
+                            <thead>
+                              <tr>
+                                <th>Vista previa</th>
+                                <th>#</th>
+                                <th>Precio</th>
+                                <th>Estado</th>
+                                <th></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr t-foreach="photos" t-as="photo">
+                                <td style="width:120px;">
+                                  <img class="img-thumbnail" t-att-src="'/web/image/tienda.foto.asset/%s/imagen_watermark' % photo.id" alt="Foto"/>
+                                </td>
+                                <td t-esc="photo.numero_dorsal or photo.id"/>
+                                <td>
+                                  <t t-esc="photo.precio"/> <t t-esc="photo.currency_id.symbol"/>
+                                </td>
+                                <td>
+                                  <span class="badge text-uppercase" t-attf-class="badge bg-#{'success' if photo.lifecycle_state == 'published' else ('secondary' if photo.lifecycle_state == 'draft' else 'dark')}">
+                                    <t t-esc="photo.lifecycle_state or 'pending'"/>
+                                  </span>
+                                </td>
+                                <td class="text-end">
+                                  <form method="post" class="d-inline">
+                                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                    <input type="hidden" name="photo_id" t-att-value="photo.id"/>
+                                    <button class="btn btn-sm btn-outline-secondary" name="action" value="publish_photo" t-if="photo.lifecycle_state != 'published'">Publicar</button>
+                                    <button class="btn btn-sm btn-outline-warning" name="action" value="archive_photo" t-if="photo.lifecycle_state != 'archived'">Archivar</button>
+                                  </form>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </t>
+                      <t t-if="not photos">
+                        <p class="text-muted mb-0">No hay fotos en este álbum. Utiliza el formulario para subir nuevas imágenes.</p>
+                      </t>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </t>
+    </template>
+
+    <template id="photographer_archived_photos" name="Fotos archivadas">
+      <t t-call="website.layout">
+        <div id="wrap" class="oe_structure">
+          <section class="py-5">
+            <div class="container">
+              <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <div>
+                  <h1 class="h4 mb-1">Fotos archivadas</h1>
+                  <p class="text-muted mb-0">Revisa las imágenes que ya no están visibles en la tienda.</p>
+                </div>
+                <a class="btn btn-secondary" href="/mi/fotoapp">Volver al panel</a>
+              </div>
+              <t t-call="fotoapp.photographer_portal_nav"/>
+              <div class="card shadow-sm">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <form method="get" class="d-flex gap-2">
+                      <input class="form-control" type="text" name="search" placeholder="Buscar por número o álbum" t-att-value="search"/>
+                      <button class="btn btn-outline-primary" type="submit">Buscar</button>
+                    </form>
+                    <span class="text-muted" t-esc="len(photos)"/> resultados
+                  </div>
+                  <t t-if="photos">
+                    <div class="table-responsive">
+                      <table class="table align-middle">
+                        <thead>
+                          <tr>
+                            <th>Vista previa</th>
+                            <th>#</th>
+                            <th>Evento</th>
+                            <th>Álbum</th>
+                            <th>Estado</th>
+                            <th>Archivada</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr t-foreach="photos" t-as="photo">
+                            <td style="width:100px;">
+                              <img class="img-thumbnail" t-att-src="'/web/image/tienda.foto.asset/%s/imagen_watermark' % photo.id" alt="Foto"/>
+                            </td>
+                            <td t-esc="photo.numero_dorsal or photo.id"/>
+                            <td t-esc="photo.event_id.name"/>
+                            <td t-esc="photo.album_id.name"/>
+                            <td>
+                              <span class="badge bg-dark text-uppercase" t-esc="photo.lifecycle_state or 'archived'"/>
+                            </td>
+                            <td t-esc="photo.write_date and photo.write_date.strftime('%d/%m/%Y')"/>
+                            <td class="text-end">
+                              <form method="post" class="d-inline">
+                                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                <input type="hidden" name="photo_id" t-att-value="photo.id"/>
+                                <button class="btn btn-sm btn-outline-secondary" name="action" value="restore_photo">Restaurar</button>
+                                <button class="btn btn-sm btn-outline-danger" name="action" value="delete_photo" onclick="return confirm('¿Eliminar definitivamente la foto?');">Eliminar</button>
+                              </form>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </t>
+                  <t t-if="not photos">
+                    <p class="text-muted mb-0">No tenés fotos archivadas en este momento.</p>
+                  </t>
+                </div>
+              </div>
             </div>
           </section>
         </div>

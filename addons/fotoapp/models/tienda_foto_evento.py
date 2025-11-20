@@ -8,14 +8,15 @@ from .utils import slugify_text
 class TiendaFotoEvento(models.Model):
     _name = 'tienda.foto.evento'
     _description = 'Eventos de fotos'
-    _inherit = ['mail.thread', 'mail.activity.mixin']
+    _inherit = ['mail.thread', 'mail.activity.mixin'] #para que se hereda esto? 
+    # Se hereda para poder usar funcionalidades de seguimiento y actividades en el modelo por ejemplo, seguimiento de cambios en campos, asignación de tareas, etc.
     _order = 'fecha desc, id desc'
 
     name = fields.Char(string='Nombre', required=True)
     fecha = fields.Datetime(string='Fecha del Evento', required=True)
     ciudad = fields.Char(string='Ciudad')
     estado_provincia = fields.Char(string='Estado / Provincia')
-    pais_id = fields.Many2one('res.country', string='País')
+    pais_id = fields.Many2one('res.country', string='País') # res.country es el modelo estándar de Odoo para países, que contiene la lista de países reconocidos internacionalmente.
     categoria_id = fields.Many2one(
         comodel_name='tienda.foto.categoria',
         string='Categoría',
@@ -25,16 +26,16 @@ class TiendaFotoEvento(models.Model):
         comodel_name='res.partner',
         string='Fotógrafo',
         required=True,
-        domain="[('is_photographer', '=', True)]"
+        domain="[('is_photographer', '=', True)]" # Asegura que solo se puedan seleccionar socios que sean fotógrafos
     )
     plan_subscription_id = fields.Many2one(
         comodel_name='fotoapp.plan.subscription',
         string='Suscripción vinculada',
-        compute='_compute_plan_subscription',
+        compute='_compute_plan_subscription', 
         store=True,
         readonly=False
     )
-    descripcion = fields.Html(string='Descripción')
+    descripcion = fields.Html(string='Descripción') # Descripción del evento en formato HTML, que permite incluir texto, imágenes y otros elementos para detallar el evento
     image_cover = fields.Image(
         string='Portada del evento',
         max_width=1920,
@@ -90,7 +91,7 @@ class TiendaFotoEvento(models.Model):
     ]
 
     @api.depends('foto_ids')
-    def _compute_foto_count(self):
+    def _compute_foto_count(self): 
         for event in self:
             event.foto_count = len(event.foto_ids)
 
@@ -100,23 +101,23 @@ class TiendaFotoEvento(models.Model):
             event.album_count = len(event.album_ids)
 
     @api.depends('customer_ids')
-    def _compute_customer_count(self):
+    def _compute_customer_count(self): 
         for event in self:
             event.customer_count = len(event.customer_ids)
 
     @api.depends('photographer_id.plan_subscription_ids')
-    def _compute_plan_subscription(self):
+    def _compute_plan_subscription(self): # Vincula automáticamente la suscripción activa del fotógrafo al evento
         for event in self:
-            if not event.photographer_id:
+            if not event.photographer_id: # Si no hay fotógrafo asignado, no se puede vincular una suscripción
                 event.plan_subscription_id = False
                 continue
-            if event.plan_subscription_id and event.plan_subscription_id.partner_id == event.photographer_id:
+            if event.plan_subscription_id and event.plan_subscription_id.partner_id == event.photographer_id: # Mantener la suscripción si ya está vinculada correctamente
                 continue
             active_subscription = event.photographer_id.plan_subscription_ids.filtered(lambda s: s.state in {'trial', 'active', 'grace'})[:1]
             event.plan_subscription_id = active_subscription.id if active_subscription else False
 
     @api.depends('portal_token')
-    def _compute_portal_url(self):
+    def _compute_portal_url(self): # Genera la URL pública del evento basada en el token
         base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
         for event in self:
             if event.portal_token:
@@ -129,7 +130,7 @@ class TiendaFotoEvento(models.Model):
         return slugify_text(base, fallback='evento')
 
     @api.model_create_multi
-    def create(self, vals_list):
+    def create(self, vals_list): # Genera slugs, tokens de subida y portal al crear eventos
         for vals in vals_list:
             vals['website_slug'] = slugify_text(vals.get('website_slug') or vals.get('name'), fallback='evento')
         events = super().create(vals_list)
@@ -137,7 +138,7 @@ class TiendaFotoEvento(models.Model):
         events._ensure_portal_tokens()
         return events
 
-    def write(self, vals):
+    def write(self, vals): # el write se usa para actualizar registros existentes, por ejemplo, cambiar el nombre o estado de un evento.
         if vals.get('website_slug'):
             vals['website_slug'] = slugify_text(vals['website_slug'], fallback='evento')
         res = super().write(vals)
@@ -147,9 +148,9 @@ class TiendaFotoEvento(models.Model):
             self._ensure_portal_tokens()
         return res
 
-    def _ensure_upload_tokens(self):
+    def _ensure_upload_tokens(self): # Asegura que cada evento tenga un token de subida único
         for event in self.filtered(lambda e: not e.upload_token):
-            fallback = slugify_text(f"{event.name}-{event.id}", fallback='evento')
+            fallback = slugify_text(f"{event.name}-{event.id}", fallback='evento') #el fallback es para asegurar que siempre haya un valor válido
             event.upload_token = self.env['ir.sequence'].next_by_code('tienda.foto.evento.upload') or fallback
 
     def _ensure_portal_tokens(self):

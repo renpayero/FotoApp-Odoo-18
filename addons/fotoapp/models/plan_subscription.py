@@ -20,9 +20,9 @@ class FotoappPlanSubscription(models.Model):
     plan_id = fields.Many2one('fotoapp.plan', string='Plan', required=True, tracking=True)
     state = fields.Selection([
         ('draft', 'Borrador'),
-        ('trial', 'Periodo de prueba'),
+        ('trial', 'Periodo de prueba'), # Estado durante el periodo de prueba
         ('active', 'Activa'),
-        ('grace', 'En gracia'),
+        ('grace', 'En gracia'), # Estado en periodo de gracia después de la expiración
         ('suspended', 'Suspendida'),
         ('expired', 'Expirada'),
         ('canceled', 'Cancelada'),

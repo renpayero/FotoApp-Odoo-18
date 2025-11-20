@@ -57,4 +57,72 @@
       </field>
     </record>
   </data>
+  <data noupdate="0">
+    <record id="view_tienda_foto_categoria_tree" model="ir.ui.view">
+      <field name="name">tienda.foto.categoria.list</field>
+      <field name="model">tienda.foto.categoria</field>
+      <field name="arch" type="xml">
+        <list string="Categorías de fotos">
+          <field name="name"/>
+          <field name="sequence"/>
+          <field name="owner_id"/>
+          <field name="estado"/>
+          <field name="website_published"/>
+          <field name="event_count" string="# Eventos"/>
+        </list>
+      </field>
+    </record>
+
+    <record id="view_tienda_foto_categoria_form" model="ir.ui.view">
+      <field name="name">tienda.foto.categoria.form</field>
+      <field name="model">tienda.foto.categoria</field>
+      <field name="arch" type="xml">
+        <form string="Categoría de fotos">
+          <sheet>
+            <group>
+              <group>
+                <field name="name" required="1"/>
+                <field name="description"/>
+                <field name="website_description" widget="html"/>
+                <field name="slug"/>
+                <field name="seo_title"/>
+                <field name="seo_description"/>
+              </group>
+              <group>
+                <field name="estado" widget="statusbar" statusbar_visible="borrador,publicado,archivado"/>
+                <field name="website_published"/>
+                <field name="display_on_homepage"/>
+                <field name="portal_sequence"/>
+                <field name="allowed_plan_ids" widget="many2many_tags"/>
+                <field name="owner_id"/>
+                <field name="event_count" readonly="1"/>
+              </group>
+            </group>
+            <group>
+              <group>
+                <field name="image_cover" widget="image" class="oe_avatar"/>
+                <field name="website_meta_image" widget="image"/>
+              </group>
+            </group>
+          </sheet>
+        </form>
+      </field>
+    </record>
+
+    <record id="action_tienda_foto_categoria" model="ir.actions.act_window">
+      <field name="name">Categorías</field>
+      <field name="res_model">tienda.foto.categoria</field>
+      <field name="view_mode">list,form</field>
+      <field name="help" type="html">
+        <p>
+          Crea y administra las categorías disponibles en FotoApp. Estas categorías
+          se utilizan para organizar los eventos publicados en el portal.
+        </p>
+      </field>
+    </record>
+
+    <menuitem id="menu_fotoapp_root" name="FotoApp" sequence="60" groups="base.group_user"/>
+    <menuitem id="menu_fotoapp_catalog" name="Catálogo" parent="fotoapp.menu_fotoapp_root" sequence="10" groups="base.group_user"/>
+    <menuitem id="menu_fotoapp_categorias" name="Categorías" parent="fotoapp.menu_fotoapp_catalog" action="fotoapp.action_tienda_foto_categoria" sequence="10" groups="base.group_user"/>
+  </data>
 </odoo>

@@ -34,7 +34,7 @@ class TiendaFotoCategoria(models.Model):
     portal_sequence = fields.Integer(string='Orden en portal', default=10)
     is_system_category = fields.Boolean(string='Categoría del sistema', default=False)
     allowed_plan_ids = fields.Many2many('fotoapp.plan', string='Planes habilitados')
-    owner_id = fields.Many2one(
+    owner_id = fields.Many2one( # no hay owner ID, recordemos que las cateogrias estaran predefinidas por el sistema, y solo los admins podran crear categorias desde el backend.
         comodel_name='res.partner',
         string='Fotógrafo responsable',
         readonly=True

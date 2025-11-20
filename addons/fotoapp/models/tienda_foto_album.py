@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import secrets
+import secrets # sirven para generar tokens únicos y seguros, por ejemplo, para el acceso al portal de un álbum.
 
 from odoo import api, fields, models, _
 
