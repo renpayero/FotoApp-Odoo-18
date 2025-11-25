@@ -27,16 +27,19 @@ class PhotographerAlbumsController(PhotographerPortalMixin, http.Controller):
             'photos': album.asset_ids,
             'errors': [],
             'active_menu': 'events',
-            'can_publish_album': album.state in {'draft', 'editing', 'proofing'},
         }
         if request.httprequest.method == 'POST':
             action = post.get('action')
             should_redirect = True
             if action == 'update_album':
+                is_private = 'is_private' in post
+                # Treat privacy switch as visibility toggle for homepage listings
+                next_state = 'draft' if is_private else 'published'
                 album.sudo().write({
                     'name': (post.get('name') or '').strip(),
-                    'is_private': 'is_private' in post,
+                    'is_private': is_private,
                     'download_limit': int(post.get('download_limit') or 0),
+                    'state': next_state,
                 })
             elif action == 'publish_album':
                 album.sudo().action_publish()
@@ -74,5 +77,4 @@ class PhotographerAlbumsController(PhotographerPortalMixin, http.Controller):
             if should_redirect:
                 return request.redirect(f"/mi/fotoapp/album/{album.id}")
             values['photos'] = album.asset_ids
-            values['can_publish_album'] = album.state in {'draft', 'editing', 'proofing'}
         return request.render('fotoapp.photographer_album_detail', values)

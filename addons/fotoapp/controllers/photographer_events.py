@@ -2,6 +2,7 @@ import logging
 
 from odoo import http, fields
 from odoo.http import request
+from odoo.tools import html2plaintext
 
 from .portal_base import PhotographerPortalMixin
 
@@ -62,8 +63,9 @@ class PhotographerEventsController(PhotographerPortalMixin, http.Controller):
                 'estado_provincia': post.get('estado_provincia', ''),
                 'pais_id': post.get('pais_id'),
                 'categoria_id': post.get('categoria_id'),
-                'descripcion': post.get('descripcion', ''),
+                'descripcion': (post.get('descripcion') or '').strip(),
             }
+            
         }
 
         if request.httprequest.method == 'POST':
@@ -133,6 +135,7 @@ class PhotographerEventsController(PhotographerPortalMixin, http.Controller):
                     values['errors'].append('Selecciona una categoría.')
                 if not fecha:
                     values['errors'].append('Ingresa una fecha válida.')
+                values['event_description_plain'] = post.get('descripcion', '').strip()
                 if not values['errors']:
                     update_vals = {
                         'name': (post.get('name') or '').strip(),

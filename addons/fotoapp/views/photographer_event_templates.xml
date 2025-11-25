@@ -259,7 +259,7 @@
                         </div>
                         <div class="col-12">
                           <label class="form-label">Descripción</label>
-                          <textarea class="form-control" rows="4" name="descripcion"><t t-esc="event.descripcion"/></textarea>
+                          <textarea class="form-control" rows="4" name="descripcion"><t t-esc="event.descripcion or ''"/></textarea>
                         </div>
                       </div>
                     </div>
