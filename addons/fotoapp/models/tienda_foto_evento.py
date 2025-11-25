@@ -192,3 +192,13 @@ class TiendaFotoEvento(models.Model):
             next_stage = stage_flow.get(event.lifecycle_state)
             if next_stage:
                 event.lifecycle_state = next_stage
+
+    def unlink(self):
+        Asset = self.env['tienda.foto.asset'].sudo()
+        assets = Asset.search([('evento_id', 'in', self.ids)])
+        if assets:
+            assets.unlink()
+        albums = self.mapped('album_ids').sudo()
+        if albums:
+            albums.with_context(skip_album_asset_cleanup=True).unlink()
+        return super().unlink()

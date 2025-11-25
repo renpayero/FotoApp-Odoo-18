@@ -6,13 +6,13 @@ Todo el flujo operativo de los fotógrafos se realiza **desde el front-end** (we
 
 ---
 
-## Índice
+## Índice.
 
 1. [Alcance General](#1-alcance-general)  
 2. [Actores del Sistema](#2-actores-del-sistema)  
 3. [Suposiciones y Dependencias](#3-suposiciones-y-dependencias)  
 4. [Requisitos Funcionales (RF)](#4-requisitos-funcionales-rf)  
-   - [4.1 Categorías Predefinidas](#41-categorías-predefinidas)  
+   - [4.1 Categorías Predefinidas](#41-categorías-predefinidas)  a
    - [4.2 Página de Inicio (Home)](#42-página-de-inicio-home)  
    - [4.3 Páginas de Navegación Pública](#43-páginas-de-navegación-pública)  
    - [4.4 Gestión del Contenido por Fotógrafo (Front-End)](#44-gestión-del-contenido-por-fotógrafo-front-end)  

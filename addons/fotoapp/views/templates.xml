@@ -296,10 +296,6 @@
                   <h1 class="h3 mb-1">Hola, <t t-esc="partner.name"/></h1>
                   <p class="text-muted mb-0">Gestioná tus eventos, álbumes y fotos desde un solo lugar.</p>
                 </div>
-                <div class="d-flex gap-2">
-                  <a class="btn btn-primary" href="/mi/fotoapp/eventos/nuevo">Crear evento</a>
-                  <a class="btn btn-outline-secondary" href="/mi/fotoapp/fotos/archivadas">Fotos archivadas</a>
-                </div>
               </div>
               <t t-call="fotoapp.photographer_portal_nav"/>
               <div class="row g-3 mb-4">
@@ -369,7 +365,7 @@
                             <td t-esc="event.categoria_id.name"/>
                             <td t-esc="len(event.album_ids)"/>
                             <td class="text-end">
-                              <a class="btn btn-sm btn-outline-secondary" t-attf-href="/mi/fotoapp/evento/{ event.id }">Administrar</a>
+                              <a class="btn btn-sm btn-outline-secondary" t-attf-href="/mi/fotoapp/evento/#{ event.id }">Administrar</a>
                             </td>
                           </tr>
                         </tbody>
@@ -471,8 +467,8 @@
                             </td>
                             <td class="text-end">
                               <div class="btn-group">
-                                <a class="btn btn-outline-secondary btn-sm" t-attf-href="/mi/fotoapp/evento/{ event.id }">Gestionar</a>
-                                <a class="btn btn-outline-primary btn-sm" t-attf-href="/mi/fotoapp/album/{ event.album_ids[:1].id }" t-if="event.album_ids">Primer álbum</a>
+                                <a class="btn btn-outline-secondary btn-sm" t-attf-href="/mi/fotoapp/evento/#{ event.id }">Gestionar</a>
+                                <a class="btn btn-outline-primary btn-sm" t-attf-href="/mi/fotoapp/album/#{ event.album_ids[:1].id }" t-if="event.album_ids">Primer álbum</a>
                               </div>
                             </td>
                           </tr>
@@ -602,7 +598,6 @@
                 <div class="col-lg-8">
                   <form method="post" enctype="multipart/form-data" class="card shadow-sm">
                     <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
-                    <input type="hidden" name="action" value="update_event"/>
                     <div class="card-body">
                       <h2 class="h5 mb-3">Datos del evento</h2>
                       <div class="row g-3">
@@ -683,10 +678,6 @@
                           <label class="form-label">Email del cliente (opcional)</label>
                           <input type="email" class="form-control" name="customer_email"/>
                         </div>
-                        <div class="mb-3">
-                          <label class="form-label">Fecha de expiración</label>
-                          <input type="date" class="form-control" name="expiration_date"/>
-                        </div>
                         <button type="submit" class="btn btn-primary w-100">Crear álbum</button>
                       </form>
                     </div>
@@ -725,7 +716,7 @@
                               <t t-if="not album.customer_email">—</t>
                             </td>
                             <td class="text-end">
-                              <a class="btn btn-outline-primary btn-sm" t-attf-href="/mi/fotoapp/album/{ album.id }">Gestionar</a>
+                              <a class="btn btn-outline-primary btn-sm" t-attf-href="/mi/fotoapp/album/#{ album.id }">Gestionar</a>
                             </td>
                           </tr>
                         </tbody>
@@ -753,7 +744,24 @@
                   <h1 class="h4 mb-1" t-esc="album.name"/>
                   <p class="text-muted mb-0">Evento: <t t-esc="album.event_id.name"/></p>
                 </div>
-                <a class="btn btn-secondary" t-attf-href="/mi/fotoapp/evento/{ album.event_id.id }">Volver al evento</a>
+                <a class="btn btn-secondary" t-attf-href="/mi/fotoapp/evento/#{ album.event_id.id }">Volver al evento</a>
+              </div>
+              <div class="d-flex flex-wrap gap-2 mb-4">
+                <form method="post" t-if="can_publish_album">
+                  <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                  <input type="hidden" name="action" value="publish_album"/>
+                  <button type="submit" class="btn btn-outline-success">Publicar álbum</button>
+                </form>
+                <form method="post" t-if="album.state != 'archived'">
+                  <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                  <input type="hidden" name="action" value="archive_album"/>
+                  <button type="submit" class="btn btn-outline-warning">Archivar álbum</button>
+                </form>
+                <form method="post" onsubmit="return confirm('¿Eliminar el álbum y desvincular sus fotos?');">
+                  <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                  <input type="hidden" name="action" value="delete_album"/>
+                  <button type="submit" class="btn btn-outline-danger">Eliminar álbum</button>
+                </form>
               </div>
               <t t-call="fotoapp.photographer_portal_nav"/>
               <t t-if="errors">
@@ -787,26 +795,11 @@
                     </div>
                   </form>
 
-                  <form method="post" class="card shadow-sm mb-4">
-                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
-                    <div class="card-body">
-                      <h2 class="h6 mb-3">Acciones rápidas</h2>
-                      <div class="d-grid gap-2">
-                        <button type="submit" name="action" value="archive_album" class="btn btn-outline-warning">Archivar álbum</button>
-                        <button type="submit" name="action" value="delete_album" class="btn btn-outline-danger" onclick="return confirm('¿Eliminar el álbum y desvincular sus fotos?');">Eliminar álbum</button>
-                      </div>
-                    </div>
-                  </form>
-
                   <form method="post" enctype="multipart/form-data" class="card shadow-sm">
                     <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
                     <input type="hidden" name="action" value="upload_photo"/>
                     <div class="card-body">
                       <h2 class="h6 mb-3">Subir nueva foto</h2>
-                      <div class="mb-3">
-                        <label class="form-label">Número / Identificador</label>
-                        <input type="text" class="form-control" name="numero_dorsal"/>
-                      </div>
                       <div class="mb-3">
                         <label class="form-label">Precio *</label>
                         <input type="number" step="0.01" min="0" class="form-control" name="price" required="required"/>
@@ -815,6 +808,7 @@
                         <label class="form-label">Archivo *</label>
                         <input type="file" class="form-control" name="image_file" accept="image/*" required="required"/>
                       </div>
+                      <p class="text-muted small mb-3">El identificador se asigna automáticamente al subir la foto.</p>
                       <button type="submit" class="btn btn-primary w-100">Subir foto</button>
                     </div>
                   </form>
@@ -920,8 +914,13 @@
                               <img class="img-thumbnail" t-att-src="'/web/image/tienda.foto.asset/%s/imagen_watermark' % photo.id" alt="Foto"/>
                             </td>
                             <td t-esc="photo.numero_dorsal or photo.id"/>
-                            <td t-esc="photo.event_id.name"/>
-                            <td t-esc="photo.album_id.name"/>
+                            <td t-esc="photo.evento_id.name"/>
+                            <td>
+                              <t t-if="photo.album_ids">
+                                <t t-esc="', '.join(photo.album_ids.mapped('name'))"/>
+                              </t>
+                              <t t-if="not photo.album_ids">—</t>
+                            </td>
                             <td>
                               <span class="badge bg-dark text-uppercase" t-esc="photo.lifecycle_state or 'archived'"/>
                             </td>
@@ -930,8 +929,8 @@
                               <form method="post" class="d-inline">
                                 <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
                                 <input type="hidden" name="photo_id" t-att-value="photo.id"/>
-                                <button class="btn btn-sm btn-outline-secondary" name="action" value="restore_photo">Restaurar</button>
-                                <button class="btn btn-sm btn-outline-danger" name="action" value="delete_photo" onclick="return confirm('¿Eliminar definitivamente la foto?');">Eliminar</button>
+                                <button class="btn btn-sm btn-outline-secondary" name="action" value="restore">Restaurar</button>
+                                <button class="btn btn-sm btn-outline-danger" name="action" value="delete" onclick="return confirm('¿Eliminar definitivamente la foto?');">Eliminar</button>
                               </form>
                             </td>
                           </tr>

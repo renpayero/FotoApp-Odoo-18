@@ -12,7 +12,7 @@ class TiendaFotoAlbum(models.Model):
 
     name = fields.Char(string='Nombre del álbum', required=True)
     sequence = fields.Integer(default=10)
-    event_id = fields.Many2one('tienda.foto.evento', string='Evento', required=True)
+    event_id = fields.Many2one('tienda.foto.evento', string='Evento', required=True, ondelete='cascade')
     plan_subscription_id = fields.Many2one('fotoapp.plan.subscription', string='Suscripción', related='event_id.plan_subscription_id', store=True, readonly=True)
     photographer_id = fields.Many2one('res.partner', string='Fotógrafo', related='event_id.photographer_id', store=True, readonly=True)
     partner_id = fields.Many2one('res.partner', string='Cliente asociado')
@@ -35,7 +35,7 @@ class TiendaFotoAlbum(models.Model):
         column2='asset_id',
         string='Fotos'
     )
-    asset_count = fields.Integer(string='Total de fotos', compute='_compute_asset_count', store=True)
+    asset_count = fields.Integer(string='Total de fotos', compute='_compute_asset_count')
     featured_asset_id = fields.Many2one('tienda.foto.asset', string='Foto destacada')
     download_limit = fields.Integer(string='Descargas permitidas', default=0, help='0 significa ilimitado.')
     download_count = fields.Integer(string='Descargas realizadas', default=0)
@@ -85,3 +85,12 @@ class TiendaFotoAlbum(models.Model):
 
     def action_archive(self):
         self.write({'state': 'archived'})
+
+    def unlink(self):
+        if not self.env.context.get('skip_album_asset_cleanup'):
+            assets_to_remove = self.env['tienda.foto.asset']
+            for album in self:
+                assets_to_remove |= album.asset_ids
+            if assets_to_remove:
+                assets_to_remove.sudo().unlink()
+        return super().unlink()

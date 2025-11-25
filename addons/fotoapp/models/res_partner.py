@@ -77,6 +77,12 @@ class ResPartner(models.Model):
         ('cash', 'Pago manual'),
     ], string='Método de pago preferido', default='mercadopago')
     payout_account = fields.Char(string='Cuenta de pago / CBU / Alias')
+    fotoapp_next_photo_identifier = fields.Integer(
+        string='Próximo identificador de foto',
+        default=0,
+        copy=False,
+        help='Mantiene la secuencia interna para numerar fotos automáticamente.'
+    )
 
     def get_watermark_payload(self):
         self.ensure_one()

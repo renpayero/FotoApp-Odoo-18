@@ -1,0 +1,100 @@
+<odoo>
+  <data>
+    <template id="photographer_dashboard" name="Panel del fotógrafo">
+      <t t-call="website.layout">
+        <div id="wrap" class="oe_structure">
+          <section class="py-5 bg-200">
+            <div class="container">
+              <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+                <div>
+                  <h1 class="h3 mb-1">Hola, <t t-esc="partner.name"/></h1>
+                  <p class="text-muted mb-0">Gestioná tus eventos, álbumes y fotos desde un solo lugar.</p>
+                </div>
+              </div>
+              <t t-call="fotoapp.photographer_portal_nav"/>
+              <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                  <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                      <p class="text-muted mb-1">Eventos totales</p>
+                      <h3 class="h2 mb-0" t-esc="stats.get('total_events', 0)"/>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                      <p class="text-muted mb-1">Eventos publicados</p>
+                      <h3 class="h2 mb-0" t-esc="stats.get('published_events', 0)"/>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                      <p class="text-muted mb-1">Álbumes</p>
+                      <h3 class="h2 mb-0" t-esc="stats.get('albums', 0)"/>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                      <p class="text-muted mb-1">Fotos subidas</p>
+                      <h3 class="h2 mb-0" t-esc="stats.get('photos', 0)"/>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="card shadow-sm">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="h5 mb-0">Últimos eventos</h2>
+                    <a class="btn btn-sm btn-outline-primary" href="/mi/fotoapp/eventos/nuevo">Nuevo evento</a>
+                  </div>
+                  <t t-if="events">
+                    <div class="table-responsive">
+                      <table class="table align-middle mb-0">
+                        <thead>
+                          <tr>
+                            <th>Nombre</th>
+                            <th>Fecha</th>
+                            <th>Estado</th>
+                            <th>Categoría</th>
+                            <th>Álbumes</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr t-foreach="events" t-as="event">
+                            <td>
+                              <strong t-esc="event.name"/>
+                            </td>
+                            <td t-esc="event.fecha and event.fecha.strftime('%d/%m/%Y %H:%M')"/>
+                            <td>
+                              <span class="badge text-uppercase" t-attf-class="badge bg-#{'success' if event.estado == 'publicado' else ('secondary' if event.estado == 'borrador' else 'warning')}">
+                                <t t-esc="event.estado"/>
+                              </span>
+                            </td>
+                            <td t-esc="event.categoria_id.name"/>
+                            <td t-esc="len(event.album_ids)"/>
+                            <td class="text-end">
+                              <a class="btn btn-sm btn-outline-secondary" t-attf-href="/mi/fotoapp/evento/#{ event.id }">Administrar</a>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </t>
+                  <t t-if="not events">
+                    <p class="text-muted mb-0">Todavía no creaste eventos. Usa el botón “Nuevo evento” para empezar.</p>
+                  </t>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </t>
+    </template>
+  </data>
+</odoo>

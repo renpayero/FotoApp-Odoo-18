@@ -267,7 +267,7 @@ class FotoappWebsite(http.Controller):
 		}
 
 		if request.httprequest.method == 'POST':
-			action = post.get('action')
+			action = post.get('action') or 'update_event'
 			redirect_url = f"/mi/fotoapp/evento/{event.id}"
 			if action == 'update_event':
 				fecha = self._parse_datetime(post.get('fecha'))
@@ -293,9 +293,9 @@ class FotoappWebsite(http.Controller):
 				else:
 					return request.render('fotoapp.photographer_event_detail', values)
 			elif action == 'publish_event':
-				event.sudo().write({'estado': 'publicado', 'website_published': True})
+				event.sudo().action_publicar()
 			elif action == 'archive_event':
-				event.sudo().write({'estado': 'archivado', 'website_published': False, 'lifecycle_state': 'archived'})
+				event.sudo().action_archivar()
 			elif action == 'delete_event':
 				event.sudo().unlink()
 				return request.redirect('/mi/fotoapp')
@@ -320,7 +320,6 @@ class FotoappWebsite(http.Controller):
 				'event_id': event.id,
 				'partner_id': post.get('partner_id') or False,
 				'customer_email': post.get('customer_email'),
-				'expiration_date': post.get('expiration_date'),
 			}
 			request.env['tienda.foto.album'].sudo().create(vals)
 		return request.redirect(f"/mi/fotoapp/evento/{event.id}")
@@ -333,12 +332,17 @@ class FotoappWebsite(http.Controller):
 		album = self._get_album_for_partner(partner, album_id)
 		if not album:
 			return request.not_found()
+		if request.httprequest.method == 'POST' and (post.get('action') == 'delete_album'):
+			event_id = album.event_id.id
+			album.sudo().unlink()
+			return request.redirect(f"/mi/fotoapp/evento/{event_id}")
 		values = {
 			'partner': partner,
 			'album': album,
 			'photos': album.asset_ids,
 			'errors': [],
 			'active_menu': 'events',
+			'can_publish_album': album.state in {'draft', 'editing', 'proofing'},
 		}
 		if request.httprequest.method == 'POST':
 			action = post.get('action')
@@ -349,11 +353,10 @@ class FotoappWebsite(http.Controller):
 					'is_private': 'is_private' in post,
 					'download_limit': int(post.get('download_limit') or 0),
 				})
+			elif action == 'publish_album':
+				album.sudo().action_publish()
 			elif action == 'archive_album':
-				album.sudo().write({'state': 'archived'})
-			elif action == 'delete_album':
-				album.sudo().unlink()
-				return request.redirect(f"/mi/fotoapp/evento/{album.event_id.id}")
+				album.sudo().action_archive()
 			elif action == 'upload_photo':
 				image = self._prepare_cover_image(post.get('image_file'))
 				precio = post.get('price')
@@ -366,9 +369,7 @@ class FotoappWebsite(http.Controller):
 				if not values['errors']:
 					asset_vals = {
 						'evento_id': album.event_id.id,
-						'photographer_id': partner.id,
 						'precio': precio,
-						'numero_dorsal': post.get('numero_dorsal'),
 						'imagen_original': image,
 						'album_ids': [(4, album.id)],
 					}
@@ -388,6 +389,7 @@ class FotoappWebsite(http.Controller):
 			if should_redirect:
 				return request.redirect(f"/mi/fotoapp/album/{album.id}")
 			values['photos'] = album.asset_ids
+			values['can_publish_album'] = album.state in {'draft', 'editing', 'proofing'}
 		return request.render('fotoapp.photographer_album_detail', values)
 
 	@http.route(['/mi/fotoapp/fotos/archivadas'], type='http', auth='user', website=True, methods=['GET', 'POST'])
@@ -396,10 +398,18 @@ class FotoappWebsite(http.Controller):
 		if not partner:
 			return denied
 		Asset = request.env['tienda.foto.asset'].sudo()
-		photos = Asset.search([
+		domain = [
 			('photographer_id', '=', partner.id),
 			('lifecycle_state', '=', 'archived')
-		], order='write_date desc')
+		]
+		search_term = (request.params.get('search') or '').strip()
+		if search_term:
+			domain += ['|', '|',
+				('numero_dorsal', 'ilike', search_term),
+				('evento_id.name', 'ilike', search_term),
+				('album_ids.name', 'ilike', search_term)
+			]
+		photos = Asset.search(domain, order='write_date desc')
 		if request.httprequest.method == 'POST':
 			action = post.get('action')
 			photo = self._get_asset_for_partner(partner, int(post.get('photo_id')))
@@ -409,5 +419,5 @@ class FotoappWebsite(http.Controller):
 				elif action == 'delete':
 					photo.sudo().unlink()
 			return request.redirect('/mi/fotoapp/fotos/archivadas')
-		values = {'partner': partner, 'photos': photos, 'active_menu': 'archived'}
+		values = {'partner': partner, 'photos': photos, 'active_menu': 'archived', 'search': search_term}
 		return request.render('fotoapp.photographer_archived_photos', values)

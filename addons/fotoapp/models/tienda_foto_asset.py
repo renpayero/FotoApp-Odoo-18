@@ -20,7 +20,8 @@ class TiendaFotoAsset(models.Model):
     evento_id = fields.Many2one(
         comodel_name='tienda.foto.evento',
         string='Evento',
-        required=True
+        required=True,
+        ondelete='cascade'
     )
     photographer_id = fields.Many2one(
         'res.partner',
@@ -35,7 +36,7 @@ class TiendaFotoAsset(models.Model):
         store=True,
         string='Suscripción'
     )
-    numero_dorsal = fields.Char(string='Número de Dorsal')
+    numero_dorsal = fields.Char(string='Número de Dorsal', copy=False, readonly=True)
     sequence = fields.Integer(string='Secuencia', default=10)
     imagen_original = fields.Image(string='Imagen Original', required=True, attachment=True)
     imagen_watermark = fields.Image(string='Imagen con Marca de Agua', attachment=True)
@@ -76,6 +77,7 @@ class TiendaFotoAsset(models.Model):
     last_download_date = fields.Datetime(string='Última descarga')
     _sql_constraints = [
         ('foto_portal_token_unique', 'unique(portal_token)', 'El token de la foto debe ser único.'),
+        ('foto_unique_dorsal_photographer', 'unique(photographer_id, numero_dorsal)', 'Ya existe una foto con ese identificador para este fotógrafo.'),
     ]
 
     def _compute_checksum(self, b64_image): 
@@ -97,6 +99,10 @@ class TiendaFotoAsset(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            photographer_id = self._resolve_photographer(vals)
+            if not photographer_id:
+                raise ValidationError(_('Cada foto debe pertenecer a un fotógrafo para asignar un identificador.'))
+            vals['numero_dorsal'] = self._next_numero_dorsal(photographer_id)
             image_b64 = vals.get('imagen_original')
             if not image_b64:
                 continue
@@ -109,6 +115,40 @@ class TiendaFotoAsset(models.Model):
             vals.setdefault('portal_token', self._generate_portal_token())
             self._generate_watermark(vals)
         return super().create(vals_list)
+
+    def _resolve_photographer(self, vals):
+        photographer_id = vals.get('photographer_id')
+        if photographer_id:
+            return photographer_id
+        event_id = vals.get('evento_id')
+        if not event_id:
+            return False
+        event = self.env['tienda.foto.evento'].browse(event_id)
+        return event.photographer_id.id if event else False
+
+    def _next_numero_dorsal(self, photographer_id):
+        self.env.cr.execute(
+            """
+            SELECT COALESCE(fotoapp_next_photo_identifier, 0)
+            FROM res_partner
+            WHERE id = %s
+            FOR UPDATE
+            """,
+            (photographer_id,)
+        )
+        row = self.env.cr.fetchone()
+        if row is None:
+            raise ValidationError(_('No se encontró el fotógrafo para generar el identificador de la foto.'))
+        next_value = (row[0] or 0) + 1
+        self.env.cr.execute(
+            """
+            UPDATE res_partner
+            SET fotoapp_next_photo_identifier = %s
+            WHERE id = %s
+            """,
+            (next_value, photographer_id)
+        )
+        return str(next_value)
     
     def _generate_watermark(self, vals):
         image_b64 = vals.get('imagen_original')

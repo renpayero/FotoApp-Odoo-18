@@ -29,7 +29,11 @@
     'data': [
         'security/ir.model.access.csv',
         'views/views.xml',
-        'views/templates.xml',
+        'views/gallery_templates.xml',
+        'views/photographer_shared_templates.xml',
+        'views/photographer_dashboard_templates.xml',
+        'views/photographer_event_templates.xml',
+        'views/photographer_album_templates.xml',
     ],
     'license': 'AGPL-3',
     'installable': True,
