@@ -28,9 +28,14 @@ class FotoappGalleryController(http.Controller):
             ('estado', '=', 'publicado'),
             ('is_featured', '=', True),
         ], limit=6, order='fecha desc')
+        recent_events = request.env['tienda.foto.evento'].sudo().search([
+            ('website_published', '=', True),
+            ('estado', '=', 'publicado'),
+        ], limit=8, order='published_at desc, fecha desc')
         values = {
             'categories': categories,
             'featured_events': featured_events,
+            'recent_events': recent_events,
         }
         return request.render('fotoapp.gallery_categories', values)
 

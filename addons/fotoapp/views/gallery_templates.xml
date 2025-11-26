@@ -50,6 +50,43 @@
             </div>
           </section>
 
+          <section class="py-5" t-if="recent_events">
+            <div class="container">
+              <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <h2 class="h3 mb-0">Eventos recién publicados</h2>
+                <span class="text-muted" t-esc="len(recent_events)"/> seleccionados
+              </div>
+              <div class="row">
+                <t t-foreach="recent_events" t-as="recent">
+                  <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                    <div class="card h-100 shadow-sm">
+                      <a t-attf-href="/galeria/evento/#{ recent.website_slug }">
+                        <img class="card-img-top"
+                             t-att-src="recent.image_cover and '/web/image/tienda.foto.evento/%s/image_cover' % recent.id or '/web/static/img/placeholder.png'"
+                             t-att-alt="recent.name"/>
+                      </a>
+                      <div class="card-body">
+                        <p class="text-muted mb-1">
+                          <t t-esc="recent.fecha and recent.fecha.strftime('%d/%m/%Y')"/>
+                          ·
+                          <t t-esc="recent.ciudad"/>
+                          <t t-if="recent.ciudad and recent.estado_provincia">, </t>
+                          <t t-esc="recent.estado_provincia"/>
+                        </p>
+                        <h3 class="h6 mb-1">
+                          <a class="text-decoration-none" t-attf-href="/galeria/evento/#{ recent.website_slug }">
+                            <t t-esc="recent.name"/>
+                          </a>
+                        </h3>
+                        <p class="text-muted mb-0">Por <strong t-esc="recent.photographer_id.name"/></p>
+                      </div>
+                    </div>
+                  </div>
+                </t>
+              </div>
+            </div>
+          </section>
+
           <section class="s_features py-5 bg-light" t-if="featured_events">
             <div class="container">
               <h2 class="h3 mb-4">Eventos destacados</h2>
