@@ -11,7 +11,7 @@ _logger = logging.getLogger(__name__)
 class PhotographerAlbumsController(PhotographerPortalMixin, http.Controller):
     @http.route(['/mi/fotoapp/album/<int:album_id>'], type='http', auth='user', website=True, methods=['GET', 'POST'])
     def photographer_album_detail(self, album_id, **post):
-        partner, denied = self._ensure_photographer()
+        partner, denied = self._ensure_photographer() # acá nos aseguramos de que sea fotógrafo
         if not partner:
             return denied
         album = self._get_album_for_partner(partner, album_id)
@@ -21,12 +21,14 @@ class PhotographerAlbumsController(PhotographerPortalMixin, http.Controller):
             event_id = album.event_id.id
             album.sudo().unlink()
             return request.redirect(f"/mi/fotoapp/evento/{event_id}")
+        success_message = request.session.pop('fotoapp_album_success', False)
         values = {
             'partner': partner,
             'album': album,
             'photos': album.asset_ids,
             'errors': [],
             'active_menu': 'events',
+            'album_success': success_message,
         }
         if request.httprequest.method == 'POST':
             action = post.get('action')
@@ -34,7 +36,7 @@ class PhotographerAlbumsController(PhotographerPortalMixin, http.Controller):
             if action == 'update_album':
                 is_private = 'is_private' in post
                 # Treat privacy switch as visibility toggle for homepage listings
-                next_state = 'draft' if is_private else 'published'
+                next_state = 'draft' if is_private else 'published' # aca decimos que si es privado va a borrador, sino publicado
                 album.sudo().write({
                     'name': (post.get('name') or '').strip(),
                     'is_private': is_private,
@@ -46,22 +48,40 @@ class PhotographerAlbumsController(PhotographerPortalMixin, http.Controller):
             elif action == 'archive_album':
                 album.sudo().action_archive()
             elif action == 'upload_photo':
-                image = self._prepare_cover_image(post.get('image_file'))
-                precio = post.get('price')
-                if not image:
-                    values['errors'].append('Debes seleccionar una imagen para subir.')
+                files = request.httprequest.files.getlist('image_files')
+                price_raw = post.get('price')
                 try:
-                    precio = float(precio or 0.0)
+                    precio = float(price_raw or 0.0)
                 except ValueError:
+                    precio = 0.0
                     values['errors'].append('El precio debe ser numérico.')
+                if not files:
+                    values['errors'].append('Seleccioná al menos una imagen para subir.')
                 if not values['errors']:
-                    asset_vals = {
-                        'evento_id': album.event_id.id,
-                        'precio': precio,
-                        'imagen_original': image,
-                        'album_ids': [(4, album.id)],
-                    }
-                    request.env['tienda.foto.asset'].sudo().create(asset_vals)
+                    Asset = request.env['tienda.foto.asset'].sudo()
+                    created = 0
+                    skipped = 0
+                    for upload in files:
+                        image = self._prepare_cover_image(upload)
+                        if not image:
+                            skipped += 1
+                            continue
+                        asset_vals = {
+                            'evento_id': album.event_id.id,
+                            'precio': precio,
+                            'imagen_original': image,
+                            'album_ids': [(4, album.id)],
+                        }
+                        Asset.create(asset_vals)
+                        created += 1
+                    if not created:
+                        values['errors'].append('No se pudo procesar ninguna imagen. Verificá los archivos seleccionados e intentá nuevamente.')
+                        should_redirect = False
+                    else:
+                        if skipped:
+                            request.session['fotoapp_album_success'] = f"Se subieron {created} fotos correctamente. {skipped} archivos fueron descartados por estar vacíos o corruptos."
+                        else:
+                            request.session['fotoapp_album_success'] = f"Se subieron {created} fotos correctamente."
                 else:
                     should_redirect = False
             elif action in {'archive_photo', 'publish_photo'}:
@@ -74,6 +94,24 @@ class PhotographerAlbumsController(PhotographerPortalMixin, http.Controller):
                     else:
                         values_to_write.update({'lifecycle_state': 'published', 'publicada': True})
                     photo.sudo().write(values_to_write)
+            elif action == 'update_photo_price':
+                photo_id = int(post.get('photo_id')) if post.get('photo_id') else False
+                photo = self._get_asset_for_partner(partner, photo_id)
+                price_raw = post.get('photo_price')
+                try:
+                    new_price = float(price_raw or 0.0)
+                except (TypeError, ValueError):
+                    new_price = 0.0
+                    values['errors'].append('El precio debe ser numérico.')
+                if not photo:
+                    values['errors'].append('No se pudo encontrar la foto para actualizar el precio.')
+                elif new_price <= 0:
+                    values['errors'].append('El precio debe ser mayor a cero.')
+                else:
+                    photo.sudo().write({'precio': new_price})
+                    request.session['fotoapp_album_success'] = 'Precio actualizado correctamente.'
+                if values['errors']:
+                    should_redirect = False
             if should_redirect:
                 return request.redirect(f"/mi/fotoapp/album/{album.id}")
             values['photos'] = album.asset_ids

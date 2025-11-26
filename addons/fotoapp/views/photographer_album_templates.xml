@@ -27,6 +27,9 @@
                   </ul>
                 </div>
               </t>
+              <t t-if="album_success">
+                <div class="alert alert-success" role="alert" t-esc="album_success"/>
+              </t>
               <div class="row g-4">
                 <div class="col-lg-4">
                   <form method="post" class="card shadow-sm mb-4">
@@ -56,17 +59,19 @@
                     <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
                     <input type="hidden" name="action" value="upload_photo"/>
                     <div class="card-body">
-                      <h2 class="h6 mb-3">Subir nueva foto</h2>
+                      <h2 class="h6 mb-3">Subir nuevas fotos</h2>
                       <div class="mb-3">
                         <label class="form-label">Precio *</label>
                         <input type="number" step="0.01" min="0" class="form-control" name="price" required="required"/>
+                        <small class="text-muted">Se aplicará el mismo precio a todas las fotos del lote.</small>
                       </div>
                       <div class="mb-3">
-                        <label class="form-label">Archivo *</label>
-                        <input type="file" class="form-control" name="image_file" accept="image/*" required="required"/>
+                        <label class="form-label">Archivos*</label>
+                        <input type="file" class="form-control" name="image_files" accept="image/*" multiple="multiple" required="required"/>
+                        <small class="text-muted">Seleccioná las imagenes a cargar.</small>
                       </div>
-                      <p class="text-muted small mb-3">El identificador se asigna automáticamente al subir la foto.</p>
-                      <button type="submit" class="btn btn-primary w-100">Subir foto</button>
+                      <p class="text-muted small mb-3">El identificador se asigna automáticamente a cada foto.</p>
+                      <button type="submit" class="btn btn-primary w-100">Subir fotos</button>
                     </div>
                   </form>
                 </div>
@@ -96,7 +101,16 @@
                                 </td>
                                 <td t-esc="photo.numero_dorsal or photo.id"/>
                                 <td>
-                                  <t t-esc="photo.precio"/> <t t-esc="photo.currency_id.symbol"/>
+                                  <form method="post" class="d-flex gap-2 align-items-center flex-wrap">
+                                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                    <input type="hidden" name="action" value="update_photo_price"/>
+                                    <input type="hidden" name="photo_id" t-att-value="photo.id"/>
+                                    <div class="input-group input-group-sm" style="max-width: 160px;">
+                                      <span class="input-group-text" t-esc="photo.currency_id.symbol"/>
+                                      <input type="number" step="0.01" min="0.01" class="form-control" name="photo_price" t-att-value="photo.precio" required="required"/>
+                                    </div>
+                                    <button class="btn btn-sm btn-primary" type="submit">Actualizar</button>
+                                  </form>
                                 </td>
                                 <td>
                                   <span class="badge text-uppercase" t-attf-class="badge bg-#{'success' if photo.lifecycle_state == 'published' else ('secondary' if photo.lifecycle_state == 'draft' else 'dark')}">

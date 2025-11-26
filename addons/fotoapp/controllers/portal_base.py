@@ -19,7 +19,7 @@ class PhotographerPortalMixin:
 
     def _ensure_photographer(self):
         partner = self._get_current_photographer()
-        if not partner:
+        if not partner: 
             return None, request.render('fotoapp.gallery_photographer_required', {})
         return partner, None
 

@@ -1,5 +1,7 @@
 # FotoApp – Módulo de Fotografía para Odoo 18 (Front-End Only)
 
+docker compose exec odoo odoo --db_host=db --db_port=5432 --db_user=odoo --db_password=odoo -d fotoapp -u fotoapp --stop-after-init
+
 Módulo personalizado para **Odoo 18 Community** que permite a múltiples fotógrafos vender sus fotos con marca de agua usando el **website + e-commerce** de Odoo, integrando **Mercado Pago** como pasarela de pago y **CRM por fotógrafo** para registrar las ventas como oportunidades ganadas.
 
 Todo el flujo operativo de los fotógrafos se realiza **desde el front-end** (website), dejando el back-end solo para tareas administrativas.
