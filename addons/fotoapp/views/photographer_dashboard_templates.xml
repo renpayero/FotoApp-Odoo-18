@@ -96,5 +96,81 @@
         </div>
       </t>
     </template>
+
+    <template id="photographer_watermark_settings" name="Configuración de marca de agua">
+      <t t-call="website.layout">
+        <div id="wrap" class="oe_structure">
+          <section class="py-5 bg-200">
+            <div class="container">
+              <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+                <div>
+                  <h1 class="h3 mb-1">Marca de agua personal</h1>
+                  <p class="text-muted mb-0">Subí tu logo y elegí cómo se aplica a todas tus fotos publicadas.</p>
+                </div>
+              </div>
+              <t t-call="fotoapp.photographer_portal_nav"/>
+              <t t-if="errors">
+                <div class="alert alert-danger" role="alert">
+                  <ul class="mb-0">
+                    <li t-foreach="errors" t-as="error" t-esc="error"/>
+                  </ul>
+                </div>
+              </t>
+              <t t-if="success">
+                <div class="alert alert-success" role="alert" t-esc="success"/>
+              </t>
+              <div class="row g-4">
+                <div class="col-lg-6">
+                  <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                      <h2 class="h5 mb-3">Archivo y configuración</h2>
+                      <form method="post" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                        <div class="mb-3">
+                          <label class="form-label">Archivo de marca de agua</label>
+                          <input type="file" name="watermark_image" accept="image/*" class="form-control"/>
+                          <small class="text-muted">Se recomienda PNG con fondo transparente.</small>
+                        </div>
+                        <t t-if="partner.watermark_image">
+                          <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="remove_watermark" name="remove_watermark" value="1"/>
+                            <label class="form-check-label" for="remove_watermark">Eliminar marca de agua actual</label>
+                          </div>
+                        </t>
+                        <div class="mb-3">
+                          <label class="form-label">Opacidad (%)</label>
+                          <input type="number" name="watermark_opacity" min="0" max="100" class="form-control" t-att-value="partner.watermark_opacity or 60" required="required"/>
+                          <small class="text-muted">0 = transparente, 100 = sólido.</small>
+                        </div>
+                        <div class="mb-4">
+                          <label class="form-label">Escala relativa</label>
+                          <input type="number" name="watermark_scale" min="0.05" max="1" step="0.05" class="form-control" t-att-value="partner.watermark_scale or 0.3" required="required"/>
+                          <small class="text-muted">Controla el tamaño de la marca respecto de la foto final.</small>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Guardar configuración</button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-lg-6">
+                  <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                      <h2 class="h5 mb-3">Vista previa actual</h2>
+                      <t t-if="partner.watermark_image">
+                        <img class="img-fluid border rounded" t-att-src="'/web/image/res.partner/%s/watermark_image' % partner.id" alt="Marca de agua actual"/>
+                        <p class="text-muted mt-2 mb-0">Esta imagen se aplicará automáticamente a tus fotos publicadas.</p>
+                      </t>
+                      <t t-if="not partner.watermark_image">
+                        <p class="text-muted mb-0">Aún no cargaste una marca de agua. Subí un archivo para comenzar a personalizar tus fotos.</p>
+                      </t>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </t>
+    </template>
   </data>
 </odoo>

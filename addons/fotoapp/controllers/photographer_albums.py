@@ -1,4 +1,5 @@
 import logging
+import os
 
 from odoo import http
 from odoo.http import request
@@ -66,10 +67,12 @@ class PhotographerAlbumsController(PhotographerPortalMixin, http.Controller):
                         if not image:
                             skipped += 1
                             continue
+                        file_name = self._extract_upload_file_name(upload)
                         asset_vals = {
                             'evento_id': album.event_id.id,
                             'precio': precio,
                             'imagen_original': image,
+                            'name': file_name,
                             'album_ids': [(4, album.id)],
                         }
                         Asset.create(asset_vals)
@@ -92,7 +95,7 @@ class PhotographerAlbumsController(PhotographerPortalMixin, http.Controller):
                     if action == 'archive_photo':
                         values_to_write.update({'lifecycle_state': 'archived', 'website_published': False, 'publicada': False})
                     else:
-                        values_to_write.update({'lifecycle_state': 'published', 'publicada': True})
+                        values_to_write.update({'lifecycle_state': 'published', 'website_published': True, 'publicada': True})
                     photo.sudo().write(values_to_write)
             elif action == 'update_photo_price':
                 photo_id = int(post.get('photo_id')) if post.get('photo_id') else False
@@ -112,7 +115,28 @@ class PhotographerAlbumsController(PhotographerPortalMixin, http.Controller):
                     request.session['fotoapp_album_success'] = 'Precio actualizado correctamente.'
                 if values['errors']:
                     should_redirect = False
+            elif action == 'update_photo_name':
+                photo_id = int(post.get('photo_id')) if post.get('photo_id') else False
+                photo = self._get_asset_for_partner(partner, photo_id)
+                new_name = (post.get('photo_name') or '').strip()
+                if not photo:
+                    values['errors'].append('No se encontró la foto para actualizar el nombre.')
+                elif not new_name:
+                    values['errors'].append('El nombre no puede estar vacío.')
+                else:
+                    photo.sudo().write({'name': new_name})
+                    request.session['fotoapp_album_success'] = 'Nombre actualizado correctamente.'
+                if values['errors']:
+                    should_redirect = False
             if should_redirect:
                 return request.redirect(f"/mi/fotoapp/album/{album.id}")
             values['photos'] = album.asset_ids
         return request.render('fotoapp.photographer_album_detail', values)
+
+    def _extract_upload_file_name(self, upload):
+        filename = getattr(upload, 'filename', '') or ''
+        if not filename:
+            return False
+        basename = os.path.basename(filename)
+        cleaned = basename.strip()
+        return cleaned[:120] if cleaned else False

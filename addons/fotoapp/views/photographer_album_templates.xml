@@ -88,6 +88,7 @@
                             <thead>
                               <tr>
                                 <th>Vista previa</th>
+                                <th>Nombre</th>
                                 <th>#</th>
                                 <th>Precio</th>
                                 <th>Estado</th>
@@ -98,6 +99,15 @@
                               <tr t-foreach="photos" t-as="photo">
                                 <td style="width:120px;">
                                   <img class="img-thumbnail" t-att-src="'/web/image/tienda.foto.asset/%s/imagen_watermark' % photo.id" alt="Foto"/>
+                                </td>
+                                <td style="min-width:220px;">
+                                  <form method="post" class="d-flex gap-2 align-items-center flex-wrap">
+                                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                    <input type="hidden" name="action" value="update_photo_name"/>
+                                    <input type="hidden" name="photo_id" t-att-value="photo.id"/>
+                                    <input type="text" name="photo_name" class="form-control form-control-sm" t-att-value="photo.name" placeholder="Nombre de la foto" required="required"/>
+                                    <button class="btn btn-sm btn-outline-primary" type="submit">Guardar</button>
+                                  </form>
                                 </td>
                                 <td t-esc="photo.numero_dorsal or photo.id"/>
                                 <td>

@@ -37,6 +37,7 @@ class TiendaFotoAsset(models.Model):
         string='Suscripción'
     )
     numero_dorsal = fields.Char(string='Número de Dorsal', copy=False, readonly=True)
+    name = fields.Char(string='Nombre', default=lambda self: _('Foto sin nombre'))
     sequence = fields.Integer(string='Secuencia', default=10)
     imagen_original = fields.Image(string='Imagen Original', required=True, attachment=True)
     imagen_watermark = fields.Image(string='Imagen con Marca de Agua', attachment=True)
@@ -65,7 +66,8 @@ class TiendaFotoAsset(models.Model):
     ], string='Estado', default='draft', tracking=True)
     portal_token = fields.Char(string='Token portal', copy=False)
     portal_url = fields.Char(string='URL portal', compute='_compute_portal_url')
-    sale_order_line_ids = fields.Many2many('sale.order.line', string='Líneas de venta')
+    sale_order_line_ids = fields.One2many('sale.order.line', 'foto_asset_id', string='Líneas de venta')
+    product_id = fields.Many2one('product.product', string='Producto ecommerce', copy=False, readonly=True)
     sale_count = fields.Integer(string='Ventas totales', compute='_compute_sales_metrics', store=True)
     sale_total_amount = fields.Monetary(string='Ventas acumuladas', currency_field='currency_id', compute='_compute_sales_metrics', store=True)
     last_sale_date = fields.Datetime(string='Última venta', compute='_compute_sales_metrics', store=True)
@@ -103,6 +105,8 @@ class TiendaFotoAsset(models.Model):
             if not photographer_id:
                 raise ValidationError(_('Cada foto debe pertenecer a un fotógrafo para asignar un identificador.'))
             vals['numero_dorsal'] = self._next_numero_dorsal(photographer_id)
+            if not vals.get('name'):
+                vals['name'] = self._default_name_from_vals(vals)
             image_b64 = vals.get('imagen_original')
             if not image_b64:
                 continue
@@ -115,6 +119,12 @@ class TiendaFotoAsset(models.Model):
             vals.setdefault('portal_token', self._generate_portal_token())
             self._generate_watermark(vals)
         return super().create(vals_list)
+
+    def _default_name_from_vals(self, vals):
+        dorsal = vals.get('numero_dorsal')
+        if dorsal:
+            return _('Foto %s') % dorsal
+        return _('Foto sin nombre')
 
     def _resolve_photographer(self, vals):
         photographer_id = vals.get('photographer_id')
@@ -199,10 +209,9 @@ class TiendaFotoAsset(models.Model):
         alpha = partner_img.split()[3].point(lambda p: int(p * opacity))
         partner_img.putalpha(alpha)
 
-        margin = 40
         position = (
-            max(base_image.width - partner_img.width - margin, margin),
-            max(base_image.height - partner_img.height - margin, margin)
+            max(int((base_image.width - partner_img.width) / 2), 0),
+            max(int((base_image.height - partner_img.height) / 2), 0)
         )
         watermark_layer.alpha_composite(partner_img, dest=position)
         return True
@@ -227,7 +236,84 @@ class TiendaFotoAsset(models.Model):
                 vals['checksum'] = checksum
         if vals.get('portal_token') is False:
             vals['portal_token'] = self._generate_portal_token()
-        return super().write(vals)
+        res = super().write(vals)
+        if any(key in vals for key in ['precio', 'name']):
+            self._sync_sale_products()
+        return res
+
+    def regenerate_watermark(self):
+        for asset in self:
+            if not asset.imagen_original:
+                continue
+            vals = {
+                'imagen_original': asset.imagen_original,
+                'photographer_id': asset.photographer_id.id,
+                'evento_id': asset.evento_id.id,
+            }
+            self._generate_watermark(vals)
+            if vals.get('imagen_watermark'):
+                asset.imagen_watermark = vals['imagen_watermark']
+
+    def ensure_sale_product(self):
+        for asset in self:
+            asset = asset.sudo()
+            product = asset.product_id
+            if not product or not product.exists():
+                product = asset._create_sale_product()
+                asset.product_id = product.id
+            else:
+                asset._sync_sale_product_values(product)
+        return self.mapped('product_id')
+
+    def _create_sale_product(self):
+        self.ensure_one()
+        Product = self.env['product.product'].sudo()
+        vals = self._prepare_sale_product_vals()
+        return Product.create(vals)
+
+    def _prepare_sale_product_vals(self):
+        self.ensure_one()
+        categ = self.env.ref('product.product_category_all', raise_if_not_found=False)
+        description = self._get_sale_description()
+        return {
+            'name': self.name or _('Foto %s') % (self.numero_dorsal or self.id),
+            'sale_ok': True,
+            'purchase_ok': False,
+            'type': 'service',
+            'list_price': self.precio,
+            'standard_price': 0.0,
+            'taxes_id': [(6, 0, [])],
+            'categ_id': categ.id if categ else False,
+            'website_published': True,
+            'description_sale': description,
+        }
+
+    def _get_sale_description(self):
+        self.ensure_one()
+        event_name = self.evento_id.name or ''
+        photographer = self.photographer_id.name or ''
+        return _('%s · Evento %s · Fotógrafo %s') % (
+            self.name or _('Foto %s') % (self.numero_dorsal or self.id),
+            event_name,
+            photographer,
+        )
+
+    def _sync_sale_products(self):
+        for asset in self.filtered('product_id'):
+            asset._sync_sale_product_values(asset.product_id)
+
+    def _sync_sale_product_values(self, product):
+        self.ensure_one()
+        product_vals = {
+            'name': self.name or product.name,
+            'list_price': self.precio,
+            'sale_ok': True,
+        }
+        product.sudo().write(product_vals)
+        product.product_tmpl_id.sudo().write({
+            'website_published': True,
+            'description_sale': self._get_sale_description(),
+        })
 
     @api.constrains('precio')
     def _check_precio(self):

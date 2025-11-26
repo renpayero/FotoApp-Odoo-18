@@ -108,3 +108,21 @@ class ResPartner(models.Model):
             partner.asset_count = len(partner.asset_ids)
             partner.total_storage_bytes = sum(partner.asset_ids.mapped('file_size_bytes'))
             partner.gross_sales_total = sum(partner.asset_ids.mapped('sale_total_amount'))
+
+    def write(self, vals):
+        watermark_fields = {'watermark_image', 'watermark_opacity', 'watermark_scale'}
+        should_regenerate = bool(watermark_fields.intersection(vals.keys()))
+        result = super().write(vals)
+        if should_regenerate:
+            self._regenerate_published_assets_watermark()
+        return result
+
+    def _regenerate_published_assets_watermark(self):
+        Asset = self.env['tienda.foto.asset'].sudo()
+        for partner in self:
+            assets = Asset.search([
+                ('photographer_id', '=', partner.id),
+                ('lifecycle_state', '=', 'published'),
+            ])
+            if assets:
+                assets.regenerate_watermark()
