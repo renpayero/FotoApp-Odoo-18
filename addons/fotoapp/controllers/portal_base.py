@@ -23,13 +23,16 @@ class PhotographerPortalMixin:
             return None, request.render('fotoapp.gallery_photographer_required', {})
         return partner, None
 
-    def _prepare_cover_image(self, uploaded_file):
+    def _prepare_cover_image(self, uploaded_file, with_metadata=False):
         if not uploaded_file or not hasattr(uploaded_file, 'read'):
-            return False
+            return (False, 0) if with_metadata else False
         binary = uploaded_file.read()
         if not binary:
-            return False
-        return base64.b64encode(binary)
+            return (False, 0) if with_metadata else False
+        payload = base64.b64encode(binary)
+        if with_metadata:
+            return payload, len(binary)
+        return payload
 
     def _parse_datetime(self, value):
         _logger.debug("Parsing datetime value: %s", value)

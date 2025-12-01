@@ -122,7 +122,122 @@
     </record>
 
     <menuitem id="menu_fotoapp_root" name="FotoApp" sequence="60" groups="base.group_user"/>
+    <record id="view_fotoapp_plan_tree" model="ir.ui.view">
+      <field name="name">fotoapp.plan.tree</field>
+      <field name="model">fotoapp.plan</field>
+      <field name="arch" type="xml">
+        <list string="Planes de fotógrafos">
+          <field name="name"/>
+          <field name="code"/>
+          <field name="monthly_fee"/>
+          <field name="storage_limit_mb"/>
+          <field name="commission_percent"/>
+          <field name="subscription_count"/>
+        </list>
+      </field>
+    </record>
+
+    <record id="view_fotoapp_plan_form" model="ir.ui.view">
+      <field name="name">fotoapp.plan.form</field>
+      <field name="model">fotoapp.plan</field>
+      <field name="arch" type="xml">
+        <form string="Plan de fotógrafo">
+          <sheet>
+            <group>
+              <group>
+                <field name="name" required="1"/>
+                <field name="code" required="1"/>
+                <field name="sequence"/>
+                <field name="monthly_fee"/>
+                <field name="commission_percent"/>
+              </group>
+              <group>
+                <field name="storage_limit_mb"/>
+                <field name="photo_limit"/>
+                <field name="album_limit"/>
+                <field name="event_limit"/>
+              </group>
+            </group>
+            <group>
+              <group>
+                <field name="description"/>
+              </group>
+              <group>
+                <field name="product_template_id" readonly="1"/>
+                <field name="product_variant_id" readonly="1"/>
+              </group>
+            </group>
+            <notebook>
+              <page string="Suscripciones">
+                <field name="subscription_ids" readonly="1" context="{'default_plan_id': id}"/>
+              </page>
+            </notebook>
+          </sheet>
+        </form>
+      </field>
+    </record>
+
+    <record id="action_fotoapp_plan" model="ir.actions.act_window">
+      <field name="name">Planes</field>
+      <field name="res_model">fotoapp.plan</field>
+      <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_fotoapp_plan_subscription_tree" model="ir.ui.view">
+      <field name="name">fotoapp.plan.subscription.tree</field>
+      <field name="model">fotoapp.plan.subscription</field>
+      <field name="arch" type="xml">
+        <list string="Suscripciones activas">
+          <field name="name"/>
+          <field name="partner_id"/>
+          <field name="plan_id"/>
+          <field name="state" widget="statusbar"/>
+          <field name="usage_storage_mb"/>
+          <field name="next_billing_date"/>
+        </list>
+      </field>
+    </record>
+
+    <record id="view_fotoapp_plan_subscription_form" model="ir.ui.view">
+      <field name="name">fotoapp.plan.subscription.form</field>
+      <field name="model">fotoapp.plan.subscription</field>
+      <field name="arch" type="xml">
+        <form string="Suscripción">
+          <sheet>
+            <group>
+              <group>
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="plan_id"/>
+                <field name="state" widget="statusbar" statusbar_visible="draft,trial,active,grace,suspended,expired,canceled"/>
+              </group>
+              <group>
+                <field name="activation_date"/>
+                <field name="next_billing_date"/>
+                <field name="usage_storage_mb" readonly="1"/>
+                <field name="plan_storage_limit_mb" readonly="1" string="Límite (MB)"/>
+              </group>
+            </group>
+            <notebook>
+              <page string="Fotos">
+                <field name="asset_ids" readonly="1" context="{'search_default_photographer_id': partner_id}"/>
+              </page>
+            </notebook>
+          </sheet>
+        </form>
+      </field>
+    </record>
+
+    <record id="action_fotoapp_plan_subscription" model="ir.actions.act_window">
+      <field name="name">Suscripciones</field>
+      <field name="res_model">fotoapp.plan.subscription</field>
+      <field name="view_mode">list,form</field>
+    </record>
+
     <menuitem id="menu_fotoapp_catalog" name="Catálogo" parent="fotoapp.menu_fotoapp_root" sequence="10" groups="base.group_user"/>
     <menuitem id="menu_fotoapp_categorias" name="Categorías" parent="fotoapp.menu_fotoapp_catalog" action="fotoapp.action_tienda_foto_categoria" sequence="10" groups="base.group_user"/>
+    <menuitem id="menu_fotoapp_plans" name="Planes" parent="fotoapp.menu_fotoapp_root" sequence="20" groups="base.group_user"/>
+    <menuitem id="menu_fotoapp_plans_list" name="Configurar planes" parent="fotoapp.menu_fotoapp_plans" action="fotoapp.action_fotoapp_plan" sequence="10" groups="base.group_user"/>
+    <menuitem id="menu_fotoapp_subscriptions" name="Suscripciones" parent="fotoapp.menu_fotoapp_plans" action="fotoapp.action_fotoapp_plan_subscription" sequence="20" groups="base.group_user"/>
   </data>
 </odoo>

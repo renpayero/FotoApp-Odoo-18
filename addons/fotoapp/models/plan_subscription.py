@@ -43,10 +43,13 @@ class FotoappPlanSubscription(models.Model):
     plan_album_limit = fields.Integer(string='Límite de álbumes', related='plan_id.album_limit', store=False)
     plan_event_limit = fields.Integer(string='Límite de eventos', related='plan_id.event_limit', store=False)
     plan_storage_limit_gb = fields.Float(string='Límite de almacenamiento (GB)', related='plan_id.storage_limit_gb', store=False)
+    plan_storage_limit_mb = fields.Integer(string='Límite de almacenamiento (MB)', related='plan_id.storage_limit_mb', store=False)
     usage_photo_count = fields.Integer(compute='_compute_usage_metrics', store=True)
     usage_album_count = fields.Integer(compute='_compute_usage_metrics', store=True)
     usage_event_count = fields.Integer(compute='_compute_usage_metrics', store=True)
     usage_storage_bytes = fields.Integer(compute='_compute_usage_metrics', store=True)
+    usage_storage_mb = fields.Float(string='Uso de almacenamiento (MB)', compute='_compute_usage_metrics', store=True)
+    storage_limit_bytes = fields.Integer(string='Límite de almacenamiento (bytes)', compute='_compute_limit_flags', store=True)
     usage_last_update = fields.Datetime(string='Última actualización', readonly=True)
     is_over_photo_limit = fields.Boolean(compute='_compute_limit_flags', store=True)
     is_over_album_limit = fields.Boolean(compute='_compute_limit_flags', store=True)
@@ -59,22 +62,28 @@ class FotoappPlanSubscription(models.Model):
     company_id = fields.Many2one('res.company', string='Compañía', default=lambda self: self.env.company.id)
 
     @api.depends('asset_ids', 'asset_ids.file_size_bytes', 'album_ids', 'event_ids')
+    #esta funcion calcula los usos actuales de la suscripcion, como la cantidad de fotos, albumes, eventos y almacenamiento usado
     def _compute_usage_metrics(self):
         for subscription in self:
             subscription.usage_photo_count = len(subscription.asset_ids)
             subscription.usage_album_count = len(subscription.album_ids)
             subscription.usage_event_count = len(subscription.event_ids)
-            subscription.usage_storage_bytes = sum(subscription.asset_ids.mapped('file_size_bytes')) if subscription.asset_ids else 0
+            bytes_used = sum(subscription.asset_ids.mapped('file_size_bytes')) if subscription.asset_ids else 0
+            subscription.usage_storage_bytes = bytes_used
+            subscription.usage_storage_mb = bytes_used / (1024 ** 2) if bytes_used else 0.0
             subscription.usage_last_update = fields.Datetime.now()
 
     @api.depends('usage_photo_count', 'usage_album_count', 'usage_event_count', 'usage_storage_bytes')
+    #esta funcion calcula si se han superado los limites del plan
     def _compute_limit_flags(self):
         for subscription in self:
             plan = subscription.plan_id
             subscription.is_over_photo_limit = bool(plan.photo_limit and subscription.usage_photo_count > plan.photo_limit)
             subscription.is_over_album_limit = bool(plan.album_limit and subscription.usage_album_count > plan.album_limit)
             subscription.is_over_event_limit = bool(plan.event_limit and subscription.usage_event_count > plan.event_limit)
-            storage_limit_bytes = (plan.storage_limit_gb or 0.0) * (1024 ** 3)
+            storage_limit_mb = plan.storage_limit_mb or int((plan.storage_limit_gb or 0.0) * 1024)
+            storage_limit_bytes = (storage_limit_mb or 0) * 1024 * 1024
+            subscription.storage_limit_bytes = int(storage_limit_bytes)
             subscription.is_over_storage_limit = bool(storage_limit_bytes and subscription.usage_storage_bytes > storage_limit_bytes)
 
     def action_activate(self):
@@ -114,8 +123,11 @@ class FotoappPlanSubscription(models.Model):
             return self.usage_album_count <= plan.album_limit
         if metric == 'event' and plan.event_limit:
             return self.usage_event_count <= plan.event_limit
-        if metric == 'storage' and plan.storage_limit_gb:
-            return self.usage_storage_bytes <= plan.storage_limit_gb * (1024 ** 3)
+        if metric == 'storage':
+            limit_bytes = (plan.storage_limit_mb or int((plan.storage_limit_gb or 0.0) * 1024)) * 1024 * 1024
+            if limit_bytes:
+                return self.usage_storage_bytes <= limit_bytes
+            return True
         return True
 
     def name_get(self):
@@ -136,3 +148,19 @@ class FotoappPlanSubscription(models.Model):
     @api.model
     def _default_name(self):
         return self.env['ir.sequence'].next_by_code('fotoapp.plan.subscription') or _('Suscripción sin código')
+
+    def can_store_bytes(self, bytes_to_add):
+        self.ensure_one()
+        limit_mb = self.plan_id.storage_limit_mb or int((self.plan_id.storage_limit_gb or 0.0) * 1024)
+        if not limit_mb:
+            return True
+        limit_bytes = limit_mb * 1024 * 1024
+        return (self.usage_storage_bytes + bytes_to_add) <= limit_bytes
+
+    def remaining_storage_bytes(self):
+        self.ensure_one()
+        limit_mb = self.plan_id.storage_limit_mb or int((self.plan_id.storage_limit_gb or 0.0) * 1024)
+        if not limit_mb:
+            return False
+        limit_bytes = limit_mb * 1024 * 1024
+        return max(limit_bytes - self.usage_storage_bytes, 0)

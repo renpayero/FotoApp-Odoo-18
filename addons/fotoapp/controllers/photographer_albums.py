@@ -1,7 +1,7 @@
 import logging
 import os
 
-from odoo import http
+from odoo import http, _
 from odoo.http import request
 
 from .portal_base import PhotographerPortalMixin
@@ -62,11 +62,20 @@ class PhotographerAlbumsController(PhotographerPortalMixin, http.Controller):
                     Asset = request.env['tienda.foto.asset'].sudo()
                     created = 0
                     skipped = 0
+                    subscription = album.event_id.plan_subscription_id or partner.active_plan_subscription_id
+                    limit_reached = False
                     for upload in files:
-                        image = self._prepare_cover_image(upload)
+                        image, size_bytes = self._prepare_cover_image(upload, with_metadata=True)
                         if not image:
                             skipped += 1
                             continue
+                        if subscription and size_bytes and not subscription.can_store_bytes(size_bytes):
+                            limit_mb = subscription.plan_id.storage_limit_mb or int((subscription.plan_id.storage_limit_gb or 0.0) * 1024)
+                            values['errors'].append(_(
+                                'Alcanzaste el límite de almacenamiento de tu plan (%s MB). Eliminá fotos o actualizá tu plan para seguir subiendo.'
+                            ) % limit_mb)
+                            limit_reached = True
+                            break
                         file_name = self._extract_upload_file_name(upload)
                         asset_vals = {
                             'evento_id': album.event_id.id,
@@ -74,10 +83,13 @@ class PhotographerAlbumsController(PhotographerPortalMixin, http.Controller):
                             'imagen_original': image,
                             'name': file_name,
                             'album_ids': [(4, album.id)],
+                            'file_size_bytes': size_bytes,
                         }
                         Asset.create(asset_vals)
                         created += 1
-                    if not created:
+                    if limit_reached and not created:
+                        should_redirect = False
+                    elif not created:
                         values['errors'].append('No se pudo procesar ninguna imagen. Verificá los archivos seleccionados e intentá nuevamente.')
                         should_redirect = False
                     else:

@@ -18,6 +18,7 @@
     # any module necessary for this one to work correctly
     'depends': [
         'base',
+        'product',
         'website',
         'website_sale',
         'portal',
@@ -28,6 +29,7 @@
     # always loaded
     'data': [
         'security/ir.model.access.csv',
+        'data/fotoapp_plan_data.xml',
         'views/views.xml',
         'views/gallery_templates.xml',
         'views/photographer_shared_templates.xml',

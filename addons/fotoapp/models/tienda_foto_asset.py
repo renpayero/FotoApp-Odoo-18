@@ -107,12 +107,16 @@ class TiendaFotoAsset(models.Model):
             vals['numero_dorsal'] = self._next_numero_dorsal(photographer_id)
             if not vals.get('name'):
                 vals['name'] = self._default_name_from_vals(vals)
+            subscription = self._resolve_plan_subscription(vals, photographer_id)
             image_b64 = vals.get('imagen_original')
             if not image_b64:
                 continue
             size_bytes = self._compute_file_size(image_b64)
             if size_bytes:
                 vals['file_size_bytes'] = size_bytes
+            if subscription and size_bytes and not subscription.can_store_bytes(size_bytes):
+                limit_mb = subscription.plan_id.storage_limit_mb or int((subscription.plan_id.storage_limit_gb or 0.0) * 1024)
+                raise ValidationError(_('Alcanzaste el límite de almacenamiento de tu plan (%s MB).') % limit_mb)
             checksum = self._compute_checksum(image_b64)
             if checksum:
                 vals['checksum'] = checksum
@@ -135,6 +139,17 @@ class TiendaFotoAsset(models.Model):
             return False
         event = self.env['tienda.foto.evento'].browse(event_id)
         return event.photographer_id.id if event else False
+
+    def _resolve_plan_subscription(self, vals, photographer_id):
+        if vals.get('plan_subscription_id'):
+            return self.env['fotoapp.plan.subscription'].browse(vals['plan_subscription_id'])
+        event_id = vals.get('evento_id')
+        if event_id:
+            event = self.env['tienda.foto.evento'].browse(event_id)
+            if event and event.plan_subscription_id:
+                return event.plan_subscription_id
+        partner = self.env['res.partner'].browse(photographer_id)
+        return partner.active_plan_subscription_id
 
     def _next_numero_dorsal(self, photographer_id):
         self.env.cr.execute(

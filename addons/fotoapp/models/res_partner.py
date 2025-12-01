@@ -5,7 +5,7 @@ from odoo import fields, models, api
 class ResPartner(models.Model):
     _inherit = 'res.partner'
 
-    is_photographer = fields.Boolean(string='Es fotógrafo', default=False, tracking=True)
+    is_photographer = fields.Boolean(string='Es fotógrafo', default=True, tracking=True)
     photographer_bio = fields.Text(string='Biografía corta')
     portfolio_url = fields.Char(string='URL de portafolio')
     photographer_code = fields.Char(string='Código público', copy=False)
@@ -115,6 +115,8 @@ class ResPartner(models.Model):
         result = super().write(vals)
         if should_regenerate:
             self._regenerate_published_assets_watermark()
+        if vals.get('is_photographer'):
+            self.filtered('is_photographer')._ensure_default_photo_plan()
         return result
 
     def _regenerate_published_assets_watermark(self):
@@ -126,3 +128,47 @@ class ResPartner(models.Model):
             ])
             if assets:
                 assets.regenerate_watermark()
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            vals.setdefault('is_photographer', True)
+        partners = super().create(vals_list)
+        partners.filtered('is_photographer')._ensure_default_photo_plan()
+        return partners
+
+    def _ensure_default_photo_plan(self): # Activa el plan freemium si el fotógrafo no tiene una suscripción activa
+        PlanSubscription = self.env['fotoapp.plan.subscription']
+        freemium_plan = self._get_fotoapp_plan('FREEMIUM')
+        if not freemium_plan:
+            return
+        active_states = {'trial', 'active', 'grace'}
+        for partner in self: # para cada fotógrafo sin suscripción activa se le asigna el plan freemium 
+            existing = PlanSubscription.search([
+                ('partner_id', '=', partner.id),
+                ('state', 'in', list(active_states)),
+            ], limit=1)
+            if existing:
+                continue
+            partner._activate_photo_plan(freemium_plan)
+
+    def _get_fotoapp_plan(self, code):
+        Plan = self.env['fotoapp.plan']
+        plan = Plan.search([('code', '=', code)], limit=1)
+        return plan
+
+    def _activate_photo_plan(self, plan, order=None): # Crea una suscripción para el plan indicado, vinculada al pedido si se proporciona, y la activa inmediatamente
+        PlanSubscription = self.env['fotoapp.plan.subscription']
+        today = fields.Date.context_today(self)
+        next_date = fields.Date.add(today, months=1)
+        for partner in self:
+            subscription = PlanSubscription.create({
+                'partner_id': partner.id,
+                'plan_id': plan.id,
+                'state': 'draft',
+                'start_date': today,
+                'activation_date': today,
+                'next_billing_date': next_date,
+                'notes': order and f"Activado desde pedido #{order.name}" or False,
+            })
+            subscription.action_activate()
