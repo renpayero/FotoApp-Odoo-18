@@ -269,6 +269,13 @@ class TiendaFotoAsset(models.Model):
             if vals.get('imagen_watermark'):
                 asset.imagen_watermark = vals['imagen_watermark']
 
+    def ensure_download_token(self):
+        for asset in self:
+            if not asset.download_token:
+                token = asset._generate_portal_token()
+                asset.sudo().write({'download_token': token})
+        return {asset.id: asset.download_token for asset in self}
+
     def ensure_sale_product(self):
         for asset in self:
             asset = asset.sudo()

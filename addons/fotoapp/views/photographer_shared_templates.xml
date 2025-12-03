@@ -26,6 +26,7 @@
         <a t-attf-class="nav-link #{'active' if portal_active == 'events_new' else ''}" href="/mi/fotoapp/eventos/nuevo">Nuevo evento</a>
         <a t-attf-class="nav-link #{'active' if portal_active == 'archived' else ''}" href="/mi/fotoapp/fotos/archivadas">Fotos archivadas</a>
         <a t-attf-class="nav-link #{'active' if portal_active == 'settings' else ''}" href="/mi/fotoapp/configuracion/marca-agua">Marca de agua</a>
+        <a t-attf-class="nav-link #{'active' if portal_active == 'purchases' else ''}" href="/mi/fotoapp/compras">Compras</a>
       </div>
     </template>
   </data>
