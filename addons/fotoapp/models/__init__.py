@@ -12,3 +12,4 @@ from . import tienda_foto_asset
 from . import sale_order_line
 from . import sale_order
 from . import product_template
+from . import res_users

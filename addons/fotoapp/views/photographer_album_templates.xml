@@ -91,6 +91,7 @@
                                 <th>Nombre</th>
                                 <th>#</th>
                                 <th>Precio</th>
+                                <th>Tamaño</th>
                                 <th>Estado</th>
                                 <th></th>
                               </tr>
@@ -121,6 +122,11 @@
                                     </div>
                                     <button class="btn btn-sm btn-primary" type="submit">Actualizar</button>
                                   </form>
+                                </td>
+                                <td>
+                                  <span class="text-muted">
+                                    <t t-esc="'%.2f' % ((photo.file_size_bytes or 0) / (1024 * 1024))"/> MB
+                                  </span>
                                 </td>
                                 <td>
                                   <span class="badge text-uppercase" t-attf-class="badge bg-#{'success' if photo.lifecycle_state == 'published' else ('secondary' if photo.lifecycle_state == 'draft' else 'dark')}">
@@ -184,6 +190,7 @@
                             <th>#</th>
                             <th>Evento</th>
                             <th>Álbum</th>
+                            <th>Tamaño</th>
                             <th>Estado</th>
                             <th>Archivada</th>
                             <th></th>
@@ -201,6 +208,11 @@
                                 <t t-esc="', '.join(photo.album_ids.mapped('name'))"/>
                               </t>
                               <t t-if="not photo.album_ids">—</t>
+                            </td>
+                            <td>
+                              <span class="text-muted">
+                                <t t-esc="'%.2f' % ((photo.file_size_bytes or 0) / (1024 * 1024))"/> MB
+                              </span>
                             </td>
                             <td>
                               <span class="badge bg-dark text-uppercase" t-esc="photo.lifecycle_state or 'archived'"/>

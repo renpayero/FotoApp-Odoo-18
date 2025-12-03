@@ -27,6 +27,18 @@ class PhotographerDashboardController(PhotographerPortalMixin, http.Controller):
             'albums': Album.search_count([('photographer_id', '=', partner.id)]),
             'photos': Asset.search_count([('photographer_id', '=', partner.id)]),
         }
+        storage_bytes = partner.total_storage_bytes or 0
+        storage_mb = storage_bytes / (1024 * 1024) if storage_bytes else 0.0
+        plan = partner.plan_id
+        storage_limit_mb = 0
+        if plan:
+            storage_limit_mb = plan.storage_limit_mb or int((plan.storage_limit_gb or 0.0) * 1024)
+        stats.update({
+            'storage_mb': round(storage_mb, 2),
+            'storage_limit_mb': storage_limit_mb,
+            'commission_percent': plan.commission_percent if plan else 0.0,
+            'plan_name': plan.name if plan else '',
+        })
         values = {
             'partner': partner,
             'events': events,

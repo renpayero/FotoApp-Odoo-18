@@ -45,6 +45,32 @@
                     </div>
                   </div>
                 </div>
+                <div class="col-md-3">
+                  <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                      <p class="text-muted mb-1">Almacenamiento usado</p>
+                      <h3 class="h2 mb-0">
+                        <t t-esc="'%.2f' % stats.get('storage_mb', 0.0)"/> MB
+                      </h3>
+                      <p class="text-muted small mb-0" t-if="stats.get('storage_limit_mb')">
+                        de <t t-esc="stats.get('storage_limit_mb')"/> MB del plan
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                      <p class="text-muted mb-1">Comisión del sitio</p>
+                      <h3 class="h2 mb-0">
+                        <t t-esc="'%.1f' % stats.get('commission_percent', 0.0)"/>%
+                      </h3>
+                      <p class="text-muted small mb-0" t-if="stats.get('plan_name')">
+                        Plan <t t-esc="stats.get('plan_name')"/>
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div class="card shadow-sm">
                 <div class="card-body">

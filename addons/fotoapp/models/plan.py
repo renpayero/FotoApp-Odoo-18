@@ -49,6 +49,13 @@ class FotoappPlan(models.Model):
     subscription_count = fields.Integer(string='Suscripciones activas', compute='_compute_subscription_count')
     product_template_id = fields.Many2one('product.template', string='Producto asociado', copy=False)
     product_variant_id = fields.Many2one('product.product', string='Variante ecommerce', copy=False)
+    cover_image = fields.Image(
+        string='Portada para website',
+        max_width=1920,
+        max_height=1080,
+        help='Imagen utilizada en la landing pública de planes.'
+    )
+    website_published = fields.Boolean(string='Publicado en website', default=True)
 
     _sql_constraints = [
         ('plan_code_unique', 'unique(code)', 'El código del plan debe ser único.'),

@@ -36,6 +36,7 @@
         'views/photographer_dashboard_templates.xml',
         'views/photographer_event_templates.xml',
         'views/photographer_album_templates.xml',
+        'views/plan_templates.xml',
     ],
     'license': 'AGPL-3',
     'installable': True,
