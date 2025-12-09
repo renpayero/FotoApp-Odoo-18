@@ -160,7 +160,7 @@ class ResPartner(models.Model):
     def _activate_photo_plan(self, plan, order=None): # Crea una suscripción para el plan indicado, vinculada al pedido si se proporciona, y la activa inmediatamente
         PlanSubscription = self.env['fotoapp.plan.subscription']
         today = fields.Date.context_today(self)
-        next_date = fields.Date.add(today, months=1)
+        next_date = fields.Date.add(today, days=30)
         for partner in self:
             subscription = PlanSubscription.create({
                 'partner_id': partner.id,

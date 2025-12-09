@@ -7,4 +7,5 @@ access_fotoapp_plan,access_fotoapp_plan,model_fotoapp_plan,base.group_user,1,1,1
 access_fotoapp_plan_subscription,access_fotoapp_plan_subscription,model_fotoapp_plan_subscription,base.group_user,1,1,1,1
 access_fotoapp_statement,access_fotoapp_statement,model_fotoapp_photographer_statement,base.group_user,1,1,1,1
 access_fotoapp_statement_line,access_fotoapp_statement_line,model_fotoapp_photographer_statement_line,base.group_user,1,0,0,0
+access_fotoapp_debt,access_fotoapp_debt,model_fotoapp_debt,base.group_user,1,1,1,1
 

@@ -26,7 +26,7 @@ class FotoappPlan(models.Model):
         comodel_name='res.currency',
         string='Moneda',
         required=True,
-        default=lambda self: self.env.company.currency_id.id
+        default=lambda self: self._default_currency()
     )
     photo_limit = fields.Integer(string='Límite de fotos', help='0 significa ilimitado.')
     album_limit = fields.Integer(string='Límite de álbumes', help='0 significa ilimitado.')
@@ -60,6 +60,10 @@ class FotoappPlan(models.Model):
     _sql_constraints = [
         ('plan_code_unique', 'unique(code)', 'El código del plan debe ser único.'),
     ]
+
+    def _default_currency(self):
+        ars = self.env.ref('base.ARS', raise_if_not_found=False)
+        return ars.id if ars else self.env.company.currency_id.id
 
     @api.depends('subscription_ids.state')
     def _compute_subscription_count(self):

@@ -2,6 +2,7 @@
 
 from . import utils
 from . import plan
+from . import debt
 from . import plan_subscription
 from . import photographer_statement
 from . import res_partner

@@ -30,6 +30,7 @@
     'data': [
         'security/ir.model.access.csv',
         'data/fotoapp_plan_data.xml',
+        'data/fotoapp_debt_data.xml',
         'views/views.xml',
         'views/gallery_templates.xml',
         'views/photographer_shared_templates.xml',
@@ -38,6 +39,7 @@
         'views/photographer_album_templates.xml',
         'views/photographer_order_templates.xml',
         'views/plan_templates.xml',
+        'views/photographer_debt_templates.xml',
         'views/order_templates.xml',
     ],
     'license': 'AGPL-3',

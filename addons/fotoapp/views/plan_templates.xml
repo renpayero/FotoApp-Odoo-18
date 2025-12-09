@@ -62,10 +62,19 @@
     </t>
   </template>
 
-  <record id="menu_planes" model="website.menu">
+  <!-- <record id="menu_planes" model="website.menu">
     <field name="name">Planes</field>
     <field name="url">/planesfotografo</field>
     <field name="parent_id" ref="website.main_menu"/>
     <field name="sequence">30</field>
-  </record>
+    <field name="is_visible">True</field>
+  </record> -->
+
+  <template id="hide_home_menu" inherit_id="website.layout">
+    <xpath expr="//head" position="inside">
+      <style type="text/css">
+        li[data-menu-xmlid='website.menu_homepage'] {display: none !important;}
+      </style>
+    </xpath>
+  </template>
 </odoo>

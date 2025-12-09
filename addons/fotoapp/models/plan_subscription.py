@@ -3,6 +3,9 @@ from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
 
 
+FREEMIUM_CODE = 'FREEMIUM'
+
+
 class FotoappPlanSubscription(models.Model):
     _name = 'fotoapp.plan.subscription'
     _description = 'Suscripciones de planes para fotógrafos'
@@ -93,7 +96,7 @@ class FotoappPlanSubscription(models.Model):
             subscription.state = 'active'
             subscription.activation_date = fields.Date.context_today(subscription)
             if not subscription.next_billing_date:
-                subscription.next_billing_date = subscription.activation_date
+                subscription.next_billing_date = fields.Date.add(subscription.activation_date, days=30)
 
     def action_enter_grace(self):
         for subscription in self:
@@ -164,3 +167,83 @@ class FotoappPlanSubscription(models.Model):
             return False
         limit_bytes = limit_mb * 1024 * 1024
         return max(limit_bytes - self.usage_storage_bytes, 0)
+
+    # ------------------------------------------------------------------
+    # Gestión de deudas y renovación
+    # ------------------------------------------------------------------
+
+    def _handle_successful_payment(self):
+        for subscription in self:
+            subscription.write({
+                'state': 'active',
+                'grace_until': False,
+            })
+
+    def _apply_nonpayment_downgrade(self):
+        Plan = self.env['fotoapp.plan']
+        freemium_plan = Plan.search([('code', '=', FREEMIUM_CODE)], limit=1)
+        for subscription in self:
+            values = {
+                'state': 'active',
+                'next_billing_date': False,
+            }
+            if freemium_plan and subscription.plan_id != freemium_plan:
+                values['plan_id'] = freemium_plan.id
+            subscription.write(values)
+
+    @api.model
+    def _cron_generate_subscription_debts(self):
+        today = fields.Date.context_today(self)
+        Debt = self.env['fotoapp.debt'].sudo()
+        domain = [
+            ('state', 'in', ['trial', 'active', 'grace']),
+            ('plan_id.code', '!=', FREEMIUM_CODE),
+            ('next_billing_date', '!=', False),
+        ]
+        subscriptions = self.sudo().search(domain)
+        for subscription in subscriptions:
+            billing_date = subscription.next_billing_date or today
+            existing = Debt.search([
+                ('subscription_id', '=', subscription.id),
+                ('debt_type', '=', 'subscription'),
+                ('billing_date', '=', billing_date),
+            ], limit=1)
+            next_cycle_date = fields.Date.add(billing_date, days=30)
+            if existing:
+                subscription.sudo().write({'next_billing_date': next_cycle_date})
+                continue
+            amount = subscription.plan_id.monthly_fee
+            if not amount:
+                subscription.sudo().write({'next_billing_date': next_cycle_date})
+                continue
+            debt_vals = {
+                'partner_id': subscription.partner_id.id,
+                'subscription_id': subscription.id,
+                'plan_id': subscription.plan_id.id,
+                'debt_type': 'subscription',
+                'amount': amount,
+                'currency_id': subscription.plan_id.currency_id.id,
+                'billing_date': billing_date,
+                'due_date': billing_date,
+                'grace_end_date': fields.Date.add(billing_date, days=15),
+            }
+            Debt.create(debt_vals)
+            subscription.sudo().write({'next_billing_date': next_cycle_date})
+
+    @api.model
+    def _cron_handle_overdue_debts(self):
+        today = fields.Date.context_today(self)
+        Debt = self.env['fotoapp.debt'].sudo()
+        pending = Debt.search([
+            ('debt_type', '=', 'subscription'),
+            ('state', '=', 'pending'),
+            ('due_date', '<', today),
+        ])
+        pending.mark_in_grace()
+
+        expired = Debt.search([
+            ('debt_type', '=', 'subscription'),
+            ('state', 'in', ['pending', 'in_grace']),
+            ('grace_end_date', '<', today),
+        ])
+        expired.mark_expired()
