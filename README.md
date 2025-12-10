@@ -2,6 +2,29 @@
 
 docker compose exec odoo odoo --db_host=db --db_port=5432 --db_user=odoo --db_password=odoo -d fotoapp -u fotoapp --stop-after-init
 
+Para abrir el shell:
+docker compose exec odoo odoo shell --db_host=db --db_port=5432 --db_user=odoo --db_password=odoo -d fotoapp
+
+-----
+
+<!-- subs = env['fotoapp.plan.subscription'].browse(24)    # o busca por partner
+subs.mapped('next_billing_date')                      # confirma que está en 2025-12-08
+env['fotoapp.plan.subscription']._cron_generate_subscription_debts()
+env['fotoapp.debt'].search([('subscription_id', '=', subs.id)]).mapped(
+    lambda d: (d.billing_date, d.state, d.amount)
+) -->
+
+----------
+
+from odoo import fields
+
+subs = env['fotoapp.plan.subscription'].browse(24)
+subs.write({'next_billing_date': fields.Date.today()})  # forzá la fecha
+env['fotoapp.plan.subscription']._cron_generate_subscription_debts()
+debts = env['fotoapp.debt'].search([('subscription_id', '=', subs.id)])
+debts.read(['billing_date', 'state', 'partner_id'])
+
+
 Módulo personalizado para **Odoo 18 Community** que permite a múltiples fotógrafos vender sus fotos con marca de agua usando el **website + e-commerce** de Odoo, integrando **Mercado Pago** como pasarela de pago y **CRM por fotógrafo** para registrar las ventas como oportunidades ganadas.
 
 Todo el flujo operativo de los fotógrafos se realiza **desde el front-end** (website), dejando el back-end solo para tareas administrativas.

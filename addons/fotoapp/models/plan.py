@@ -63,6 +63,10 @@ class FotoappPlan(models.Model):
 
     def _default_currency(self):
         ars = self.env.ref('base.ARS', raise_if_not_found=False)
+        if not ars:
+            ars = self.env['res.currency'].search([('name', '=', 'ARS')], limit=1)
+        if ars and not ars.active:
+            ars.sudo().write({'active': True})
         return ars.id if ars else self.env.company.currency_id.id
 
     @api.depends('subscription_ids.state')

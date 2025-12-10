@@ -12,6 +12,8 @@ class FotoappPlanSubscription(models.Model):
     _inherit = ['mail.thread', 'mail.activity.mixin']
     _order = 'state desc, activation_date desc, id desc'
 
+    BILLABLE_STATES = ('trial', 'active', 'grace')
+
     name = fields.Char(string='Referencia', required=True, copy=False, default=lambda self: self._default_name())
     partner_id = fields.Many2one(
         comodel_name='res.partner',
@@ -20,6 +22,7 @@ class FotoappPlanSubscription(models.Model):
         domain="[('is_photographer', '=', True)]",
         tracking=True
     )
+    partner_ref = fields.Char(string='N° Partner', related='partner_id.ref', store=True)
     plan_id = fields.Many2one('fotoapp.plan', string='Plan', required=True, tracking=True)
     state = fields.Selection([
         ('draft', 'Borrador'),
@@ -50,9 +53,18 @@ class FotoappPlanSubscription(models.Model):
     usage_photo_count = fields.Integer(compute='_compute_usage_metrics', store=True)
     usage_album_count = fields.Integer(compute='_compute_usage_metrics', store=True)
     usage_event_count = fields.Integer(compute='_compute_usage_metrics', store=True)
-    usage_storage_bytes = fields.Integer(compute='_compute_usage_metrics', store=True)
+    usage_storage_bytes = fields.Float(
+        compute='_compute_usage_metrics',
+        store=True,
+        help='Bytes utilizados por el fotógrafo; float para evitar overflow en planes grandes.'
+    )
     usage_storage_mb = fields.Float(string='Uso de almacenamiento (MB)', compute='_compute_usage_metrics', store=True)
-    storage_limit_bytes = fields.Integer(string='Límite de almacenamiento (bytes)', compute='_compute_limit_flags', store=True)
+    storage_limit_bytes = fields.Float(
+        string='Límite de almacenamiento (bytes)',
+        compute='_compute_limit_flags',
+        store=True,
+        help='Se almacena como float para soportar límites mayores a 2GB.'
+    )
     usage_last_update = fields.Datetime(string='Última actualización', readonly=True)
     is_over_photo_limit = fields.Boolean(compute='_compute_limit_flags', store=True)
     is_over_album_limit = fields.Boolean(compute='_compute_limit_flags', store=True)
@@ -71,7 +83,7 @@ class FotoappPlanSubscription(models.Model):
             subscription.usage_photo_count = len(subscription.asset_ids)
             subscription.usage_album_count = len(subscription.album_ids)
             subscription.usage_event_count = len(subscription.event_ids)
-            bytes_used = sum(subscription.asset_ids.mapped('file_size_bytes')) if subscription.asset_ids else 0
+            bytes_used = float(sum(subscription.asset_ids.mapped('file_size_bytes'))) if subscription.asset_ids else 0.0
             subscription.usage_storage_bytes = bytes_used
             subscription.usage_storage_mb = bytes_used / (1024 ** 2) if bytes_used else 0.0
             subscription.usage_last_update = fields.Datetime.now()
@@ -85,8 +97,8 @@ class FotoappPlanSubscription(models.Model):
             subscription.is_over_album_limit = bool(plan.album_limit and subscription.usage_album_count > plan.album_limit)
             subscription.is_over_event_limit = bool(plan.event_limit and subscription.usage_event_count > plan.event_limit)
             storage_limit_mb = plan.storage_limit_mb or int((plan.storage_limit_gb or 0.0) * 1024)
-            storage_limit_bytes = (storage_limit_mb or 0) * 1024 * 1024
-            subscription.storage_limit_bytes = int(storage_limit_bytes)
+            storage_limit_bytes = float(storage_limit_mb or 0) * 1024 * 1024
+            subscription.storage_limit_bytes = storage_limit_bytes
             subscription.is_over_storage_limit = bool(storage_limit_bytes and subscription.usage_storage_bytes > storage_limit_bytes)
 
     def action_activate(self):
@@ -150,7 +162,26 @@ class FotoappPlanSubscription(models.Model):
 
     @api.model
     def _default_name(self):
-        return self.env['ir.sequence'].next_by_code('fotoapp.plan.subscription') or _('Suscripción sin código')
+        sequence = self.env['ir.sequence'].next_by_code('fotoapp.plan.subscription')
+        partner_id = self.env.context.get('default_partner_id')
+        if partner_id:
+            partner = self.env['res.partner'].browse(partner_id)
+            partner_code = partner.ref or str(partner.id)
+            return f"SUB-{partner_code}-{sequence or '0000'}"
+        return sequence or _('Suscripción sin código')
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if not vals.get('name') or vals['name'] == _('Suscripción sin código'):
+                partner = False
+                partner_id = vals.get('partner_id') or self.env.context.get('default_partner_id')
+                if partner_id:
+                    partner = self.env['res.partner'].browse(partner_id)
+                sequence = self.env['ir.sequence'].next_by_code('fotoapp.plan.subscription')
+                partner_code = partner.ref or (partner and str(partner.id)) or '0000'
+                vals['name'] = f"SUB-{partner_code}-{sequence or '0000'}"
+        return super().create(vals_list)
 
     def can_store_bytes(self, bytes_to_add):
         self.ensure_one()
@@ -158,7 +189,7 @@ class FotoappPlanSubscription(models.Model):
         if not limit_mb:
             return True
         limit_bytes = limit_mb * 1024 * 1024
-        return (self.usage_storage_bytes + bytes_to_add) <= limit_bytes
+        return (self.usage_storage_bytes + float(bytes_to_add)) <= limit_bytes
 
     def remaining_storage_bytes(self):
         self.ensure_one()
@@ -166,7 +197,7 @@ class FotoappPlanSubscription(models.Model):
         if not limit_mb:
             return False
         limit_bytes = limit_mb * 1024 * 1024
-        return max(limit_bytes - self.usage_storage_bytes, 0)
+        return max(limit_bytes - self.usage_storage_bytes, 0.0)
 
     # ------------------------------------------------------------------
     # Gestión de deudas y renovación
@@ -174,9 +205,11 @@ class FotoappPlanSubscription(models.Model):
 
     def _handle_successful_payment(self):
         for subscription in self:
+            today = fields.Date.context_today(subscription)
             subscription.write({
                 'state': 'active',
                 'grace_until': False,
+                'activation_date': today,
             })
 
     def _apply_nonpayment_downgrade(self):
@@ -191,44 +224,65 @@ class FotoappPlanSubscription(models.Model):
                 values['plan_id'] = freemium_plan.id
             subscription.write(values)
 
+    def _eligible_for_billing(self):
+        return self.filtered(lambda s: s.state in self.BILLABLE_STATES and s.plan_id.code != FREEMIUM_CODE)
+
+    def _compute_next_cycle_date(self, billing_date):
+        return fields.Date.add(billing_date, days=30)
+
     @api.model
-    def _cron_generate_subscription_debts(self):
-        today = fields.Date.context_today(self)
+    def _get_default_currency(self):
+        currency = self.env.ref('base.ARS', raise_if_not_found=False)
+        if not currency:
+            currency = self.env['res.currency'].search([('name', '=', 'ARS')], limit=1)
+        if currency and not currency.active:
+            currency.sudo().write({'active': True})
+        return currency
+
+    def _generate_subscription_debt(self, billing_date=None, force=False):
         Debt = self.env['fotoapp.debt'].sudo()
-        domain = [
-            ('state', 'in', ['trial', 'active', 'grace']),
-            ('plan_id.code', '!=', FREEMIUM_CODE),
-            ('next_billing_date', '!=', False),
-        ]
-        subscriptions = self.sudo().search(domain)
-        for subscription in subscriptions:
-            billing_date = subscription.next_billing_date or today
+        today = fields.Date.context_today(self)
+        default_currency = self._get_default_currency()
+        for subscription in self._eligible_for_billing():
+            current_billing = billing_date or subscription.next_billing_date or today
+            if not current_billing:
+                continue
             existing = Debt.search([
                 ('subscription_id', '=', subscription.id),
                 ('debt_type', '=', 'subscription'),
-                ('billing_date', '=', billing_date),
+                ('billing_date', '=', current_billing),
             ], limit=1)
-            next_cycle_date = fields.Date.add(billing_date, days=30)
-            if existing:
-                subscription.sudo().write({'next_billing_date': next_cycle_date})
+            if existing and not force:
+                subscription.sudo().write({'next_billing_date': self._compute_next_cycle_date(current_billing)})
                 continue
             amount = subscription.plan_id.monthly_fee
             if not amount:
-                subscription.sudo().write({'next_billing_date': next_cycle_date})
+                subscription.sudo().write({'next_billing_date': self._compute_next_cycle_date(current_billing)})
                 continue
+            currency = default_currency or subscription.plan_id.currency_id or self.env.company.currency_id
             debt_vals = {
                 'partner_id': subscription.partner_id.id,
                 'subscription_id': subscription.id,
                 'plan_id': subscription.plan_id.id,
                 'debt_type': 'subscription',
                 'amount': amount,
-                'currency_id': subscription.plan_id.currency_id.id,
-                'billing_date': billing_date,
-                'due_date': billing_date,
-                'grace_end_date': fields.Date.add(billing_date, days=15),
+                'currency_id': currency.id,
+                'billing_date': current_billing,
+                'due_date': current_billing,
+                'grace_end_date': fields.Date.add(current_billing, days=15),
             }
             Debt.create(debt_vals)
-            subscription.sudo().write({'next_billing_date': next_cycle_date})
+            subscription.sudo().write({'next_billing_date': self._compute_next_cycle_date(current_billing)})
+
+    @api.model
+    def _cron_generate_subscription_debts(self):
+        domain = [
+            ('state', 'in', list(self.BILLABLE_STATES)),
+            ('plan_id.code', '!=', FREEMIUM_CODE),
+            ('next_billing_date', '!=', False),
+        ]
+        subscriptions = self.sudo().search(domain)
+        subscriptions._generate_subscription_debt()
 
     @api.model
     def _cron_handle_overdue_debts(self):
@@ -247,3 +301,19 @@ class FotoappPlanSubscription(models.Model):
             ('grace_end_date', '<', today),
         ])
         expired.mark_expired()
+
+    def write(self, vals):
+        manual_next_billing = 'next_billing_date' in vals and vals['next_billing_date']
+        manual_activation = 'activation_date' in vals and vals['activation_date']
+        res = super().write(vals)
+        if not self.env.context.get('fotoapp_skip_manual_billing'):
+            today = fields.Date.context_today(self)
+            if manual_activation and not manual_next_billing:
+                for sub in self.filtered(lambda s: s.activation_date and not s.next_billing_date):
+                    next_cycle = fields.Date.add(sub.activation_date, days=30)
+                    sub.with_context(fotoapp_skip_manual_billing=True).sudo().write({'next_billing_date': next_cycle})
+            if manual_next_billing:
+                billable = self.filtered(lambda s: s.next_billing_date and s.next_billing_date <= today)
+                if billable:
+                    billable.with_context(fotoapp_skip_manual_billing=True)._generate_subscription_debt(force=True)
+        return res

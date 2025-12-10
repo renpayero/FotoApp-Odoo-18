@@ -17,7 +17,10 @@ class PhotographerDebtController(PhotographerPortalMixin, http.Controller):
             return denied
 
         Debt = request.env['fotoapp.debt'].sudo()
-        domain = [('partner_id', '=', partner.id)]
+        partner_ids = {partner.id}
+        if partner.commercial_partner_id:
+            partner_ids.add(partner.commercial_partner_id.id)
+        domain = [('partner_id', 'in', list(partner_ids))]
         active_debts = Debt.search(domain + [('state', 'in', ['pending', 'in_grace'])],
                                    order='due_date asc')
         paid_debts = Debt.search(domain + [('state', '=', 'paid')], order='paid_date desc', limit=50)

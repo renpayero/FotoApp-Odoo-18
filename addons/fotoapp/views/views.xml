@@ -193,6 +193,7 @@
         <list string="Suscripciones activas">
           <field name="name"/>
           <field name="partner_id"/>
+          <field name="partner_ref"/>
           <field name="plan_id"/>
           <field name="state" widget="statusbar"/>
           <field name="usage_storage_mb"/>
