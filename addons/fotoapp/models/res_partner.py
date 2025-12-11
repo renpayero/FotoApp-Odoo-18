@@ -1,3 +1,6 @@
+import requests
+from dateutil.relativedelta import relativedelta
+
 # -*- coding: utf-8 -*-
 from odoo import fields, models, api
 
@@ -8,6 +11,11 @@ class ResPartner(models.Model):
     is_photographer = fields.Boolean(string='Es fotógrafo', default=True, tracking=True)
     photographer_bio = fields.Text(string='Biografía corta')
     portfolio_url = fields.Char(string='URL de portafolio')
+    photographer_first_name = fields.Char(string='Nombre artístico')
+    photographer_last_name = fields.Char(string='Apellido artístico')
+    photo_reservoir_url = fields.Char(string='URL de reservorio de imágenes')
+    phone_whatsapp = fields.Char(string='WhatsApp de contacto')
+    instagram_account = fields.Char(string='Cuenta de Instagram')
     photographer_code = fields.Char(string='Código público', copy=False)
     onboarding_stage = fields.Selection([
         ('lead', 'Lead'),
@@ -77,12 +85,25 @@ class ResPartner(models.Model):
         ('cash', 'Pago manual'),
     ], string='Método de pago preferido', default='mercadopago')
     payout_account = fields.Char(string='Cuenta de pago / CBU / Alias')
+    bank_name_or_wallet = fields.Char(string='Banco o billetera')
+    bank_alias = fields.Char(string='Alias bancario')
+    cbu_cvu = fields.Char(string='CBU / CVU')
     fotoapp_next_photo_identifier = fields.Integer(
         string='Próximo identificador de foto',
         default=0,
         copy=False,
         help='Mantiene la secuencia interna para numerar fotos automáticamente.'
     )
+    mp_user_id = fields.Char(string='MP User ID', copy=False, groups='base.group_system')
+    mp_access_token = fields.Char(string='MP Access Token', groups='base.group_system')
+    mp_refresh_token = fields.Char(string='MP Refresh Token', groups='base.group_system')
+    mp_token_expires_at = fields.Datetime(string='MP Token expira', groups='base.group_system')
+    mp_account_status = fields.Selection([
+        ('not_connected', 'No conectado'),
+        ('connected', 'Conectado'),
+        ('error', 'Con error'),
+    ], string='Estado Mercado Pago', default='not_connected', tracking=True)
+    mp_account_email = fields.Char(string='Email Mercado Pago', groups='base.group_system')
 
     def get_watermark_payload(self):
         self.ensure_one()
@@ -172,3 +193,31 @@ class ResPartner(models.Model):
                 'notes': order and f"Activado desde pedido #{order.name}" or False,
             })
             subscription.action_activate()
+
+    def _mp_refresh_token_if_needed(self, force=False):
+        IrConfig = self.env['ir.config_parameter'].sudo()
+        client_id = IrConfig.get_param('fotoapp.mp_client_id')
+        client_secret = IrConfig.get_param('fotoapp.mp_client_secret')
+        for partner in self:
+            if not partner.mp_refresh_token or not client_id or not client_secret:
+                continue
+            if not force and partner.mp_token_expires_at and partner.mp_token_expires_at > fields.Datetime.now():
+                continue
+            payload = {
+                'grant_type': 'refresh_token',
+                'client_id': client_id,
+                'client_secret': client_secret,
+                'refresh_token': partner.mp_refresh_token,
+            }
+            response = requests.post('https://api.mercadopago.com/oauth/token', data=payload, timeout=30)
+            if response.ok:
+                data = response.json()
+                expires_in = data.get('expires_in') or 0
+                partner.sudo().write({
+                    'mp_access_token': data.get('access_token'),
+                    'mp_refresh_token': data.get('refresh_token') or partner.mp_refresh_token,
+                    'mp_token_expires_at': fields.Datetime.now() + relativedelta(seconds=max(expires_in - 60, 0)),
+                    'mp_account_status': 'connected',
+                })
+            else:
+                partner.sudo().write({'mp_account_status': 'error'})

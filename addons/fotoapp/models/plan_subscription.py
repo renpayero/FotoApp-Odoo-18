@@ -199,7 +199,7 @@ class FotoappPlanSubscription(models.Model):
         limit_bytes = limit_mb * 1024 * 1024
         return max(limit_bytes - self.usage_storage_bytes, 0.0)
 
-    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------a
     # Gestión de deudas y renovación
     # ------------------------------------------------------------------
 

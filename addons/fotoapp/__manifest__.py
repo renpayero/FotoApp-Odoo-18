@@ -24,6 +24,7 @@
         'portal',
         'mail',
         'crm',
+        'payment_mercado_pago',
     ],
 
     # always loaded
@@ -41,6 +42,7 @@
         'views/plan_templates.xml',
         'views/photographer_debt_templates.xml',
         'views/order_templates.xml',
+        'views/res_config_settings_views.xml',
     ],
     'license': 'AGPL-3',
     'installable': True,

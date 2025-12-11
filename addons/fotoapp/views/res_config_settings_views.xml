@@ -1,0 +1,57 @@
+<odoo>
+  <data>
+    <record id="view_res_config_settings_fotoapp_mp" model="ir.ui.view">
+      <field name="name">res.config.settings.view.form.inherit.fotoapp.mp</field>
+      <field name="model">res.config.settings</field>
+      <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+      <field name="arch" type="xml">
+        <xpath expr="//form[hasclass('oe_form_configuration')]" position="inside">
+          <div class="app_settings_block" string="Mercado Pago Marketplace" data-key="fotoapp_mp_marketplace">
+            <h2>Mercado Pago Marketplace</h2>
+            <p class="text-muted">
+              Completa las credenciales de tu aplicación de Mercado Pago para habilitar el flujo Marketplace / Split Payments.
+            </p>
+            <div class="row mt16 o_settings_container">
+              <div class="col-12 col-lg-6 o_setting_box">
+                <div class="o_setting_left">
+                  <span class="fa fa-plug" title="Client ID"/>
+                </div>
+                <div class="o_setting_right">
+                  <label for="fotoapp_mp_client_id" string="Client ID"/>
+                  <div class="text-muted">
+                    Copia el Client ID de tu aplicación de Mercado Pago.
+                  </div>
+                  <field name="fotoapp_mp_client_id" placeholder="APP-1234567890"/>
+                </div>
+              </div>
+              <div class="col-12 col-lg-6 o_setting_box">
+                <div class="o_setting_left">
+                  <span class="fa fa-key" title="Client Secret"/>
+                </div>
+                <div class="o_setting_right">
+                  <label for="fotoapp_mp_client_secret" string="Client Secret"/>
+                  <div class="text-muted">
+                    Se usa para intercambiar el código OAuth por tokens. Mantén este dato en secreto.
+                  </div>
+                  <field name="fotoapp_mp_client_secret" password="True" placeholder="APP-SECRET-..."/>
+                </div>
+              </div>
+              <div class="col-12 o_setting_box">
+                <div class="o_setting_left">
+                  <span class="fa fa-link" title="Redirect URI"/>
+                </div>
+                <div class="o_setting_right">
+                  <label for="fotoapp_mp_redirect_uri" string="Redirect URI"/>
+                  <div class="text-muted">
+                    Debe coincidir exactamente con la URL configurada en Mercado Pago. Ejemplo: https://miinstancia.com/fotoapp/mercadopago/oauth/callback
+                  </div>
+                  <field name="fotoapp_mp_redirect_uri" placeholder="https://miinstancia.com/fotoapp/mercadopago/oauth/callback"/>
+                </div>
+              </div>
+            </div>
+          </div>
+        </xpath>
+      </field>
+    </record>
+  </data>
+</odoo>

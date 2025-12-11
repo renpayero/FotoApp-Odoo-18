@@ -22,6 +22,7 @@
       <t t-set="portal_active" t-value="active_menu or ''"/>
       <div class="nav nav-pills mb-4">
         <a t-attf-class="nav-link #{'active' if portal_active == 'dashboard' else ''}" href="/mi/fotoapp">Resumen</a>
+        <a t-attf-class="nav-link #{'active' if portal_active == 'profile' else ''}" href="/mi/fotoapp/perfil">Perfil</a>
         <a t-attf-class="nav-link #{'active' if portal_active == 'events' else ''}" href="/mi/fotoapp/eventos">Eventos</a>
         <a t-attf-class="nav-link #{'active' if portal_active == 'events_new' else ''}" href="/mi/fotoapp/eventos/nuevo">Nuevo evento</a>
         <a t-attf-class="nav-link #{'active' if portal_active == 'archived' else ''}" href="/mi/fotoapp/fotos/archivadas">Fotos archivadas</a>

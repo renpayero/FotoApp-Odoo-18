@@ -123,6 +123,148 @@
       </t>
     </template>
 
+    <template id="photographer_profile_settings" name="Perfil del fotógrafo">
+      <t t-call="website.layout">
+        <div id="wrap" class="oe_structure">
+          <section class="py-5 bg-200">
+            <div class="container">
+              <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+                <div>
+                  <h1 class="h3 mb-1">Perfil y pagos</h1>
+                  <p class="text-muted mb-0">Actualizá tus datos públicos y conectá tu cuenta de Mercado Pago.</p>
+                </div>
+              </div>
+              <t t-call="fotoapp.photographer_portal_nav">
+                <t t-set="active_menu" t-value="'profile'"/>
+              </t>
+              <t t-if="flash">
+                <div class="alert alert-success" role="alert" t-esc="flash"/>
+              </t>
+              <t t-if="error">
+                <div class="alert alert-danger" role="alert" t-esc="error"/>
+              </t>
+              <t t-if="form_errors">
+                <div class="alert alert-danger" role="alert">
+                  <ul class="mb-0">
+                    <li t-foreach="form_errors" t-as="err" t-esc="err"/>
+                  </ul>
+                </div>
+              </t>
+              <div class="row g-4">
+                <div class="col-lg-7">
+                  <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                      <form method="post" novalidate="novalidate">
+                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                        <h2 class="h5 mb-3">Datos públicos</h2>
+                        <p class="text-muted">Edita lo que los clientes ven en tu perfil y asegurate de compartir tus enlaces actualizados.</p>
+                        <div class="row g-3">
+                          <div class="col-sm-6">
+                            <label class="form-label">Nombre comercial</label>
+                            <input type="text" name="photographer_first_name" class="form-control" t-att-value="form_state.get('photographer_first_name') or partner.photographer_first_name or partner.name" maxlength="128"/>
+                          </div>
+                          <div class="col-sm-6">
+                            <label class="form-label">Apellido artístico</label>
+                            <input type="text" name="photographer_last_name" class="form-control" t-att-value="form_state.get('photographer_last_name')" maxlength="128"/>
+                          </div>
+                          <div class="col-12">
+                            <label class="form-label">Biografía corta</label>
+                            <textarea name="photographer_bio" rows="3" class="form-control"><t t-esc="form_state.get('photographer_bio')"/></textarea>
+                            <small class="text-muted">Máximo 2000 caracteres.</small>
+                          </div>
+                          <div class="col-sm-6">
+                            <label class="form-label">Instagram</label>
+                            <input type="text" name="instagram_account" class="form-control" placeholder="@miestudio" t-att-value="form_state.get('instagram_account')" maxlength="150"/>
+                          </div>
+                          <div class="col-sm-6">
+                            <label class="form-label">WhatsApp</label>
+                            <input type="text" name="phone_whatsapp" class="form-control" placeholder="+54 9 11 0000-0000" t-att-value="form_state.get('phone_whatsapp')" maxlength="40"/>
+                          </div>
+                          <div class="col-sm-6">
+                            <label class="form-label">URL de portfolio</label>
+                            <input type="url" name="portfolio_url" class="form-control" placeholder="https://miportfolio.com" t-att-value="form_state.get('portfolio_url')"/>
+                          </div>
+                          <div class="col-sm-6">
+                            <label class="form-label">Reservorio de fotos</label>
+                            <input type="url" name="photo_reservoir_url" class="form-control" placeholder="https://drive.google.com/..." t-att-value="form_state.get('photo_reservoir_url')"/>
+                          </div>
+                        </div>
+                        <hr class="my-4"/>
+                        <h2 class="h6 mb-3">Datos de cobro</h2>
+                        <div class="row g-3">
+                          <div class="col-sm-6">
+                            <label class="form-label">Método preferido</label>
+                            <select name="payout_preference" class="form-select">
+                              <option t-foreach="payout_options" t-as="option" t-att-value="option[0]" t-att-selected="(form_state.get('payout_preference') or partner.payout_preference) == option[0]" t-esc="option[1]"/>
+                            </select>
+                          </div>
+                          <div class="col-sm-6">
+                            <label class="form-label">Cuenta / Alias</label>
+                            <input type="text" name="payout_account" class="form-control" t-att-value="form_state.get('payout_account')" maxlength="64"/>
+                          </div>
+                          <div class="col-sm-6">
+                            <label class="form-label">Banco o billetera</label>
+                            <input type="text" name="bank_name_or_wallet" class="form-control" t-att-value="form_state.get('bank_name_or_wallet')" maxlength="64"/>
+                          </div>
+                          <div class="col-sm-6">
+                            <label class="form-label">Alias bancario</label>
+                            <input type="text" name="bank_alias" class="form-control" t-att-value="form_state.get('bank_alias')" maxlength="64"/>
+                          </div>
+                          <div class="col-12">
+                            <label class="form-label">CBU / CVU</label>
+                            <input type="text" name="cbu_cvu" class="form-control" t-att-value="form_state.get('cbu_cvu')" maxlength="32"/>
+                          </div>
+                        </div>
+                        <div class="d-flex justify-content-end mt-4">
+                          <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-lg-5">
+                  <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                      <h2 class="h5 mb-3">Mercado Pago Marketplace</h2>
+                      <t t-if="not mp_available">
+                        <p class="text-muted mb-3">Aún no está configurada la app de Mercado Pago. Contactá al administrador.</p>
+                      </t>
+                      <t t-if="mp_available">
+                        <p class="text-muted">Conectá tu cuenta para recibir pagos directamente y que FotoApp retenga la comisión automáticamente.</p>
+                        <div class="mb-3">
+                          <strong>Estado:</strong>
+                          <span t-if="partner.mp_account_status == 'connected'" class="badge bg-success">Conectado</span>
+                          <span t-if="partner.mp_account_status == 'not_connected'" class="badge bg-secondary">No conectado</span>
+                          <span t-if="partner.mp_account_status == 'error'" class="badge bg-danger">Error</span>
+                        </div>
+                        <p class="mb-1">
+                          <strong>Cuenta vinculada:</strong>
+                          <t t-if="partner.mp_account_email" t-esc="partner.mp_account_email"/>
+                          <span t-if="not partner.mp_account_email">Sin datos</span>
+                        </p>
+                        <p class="mb-3">
+                          <strong>Expira:</strong>
+                          <span t-if="partner.mp_token_expires_at" t-esc="partner.mp_token_expires_at"/>
+                          <span t-if="not partner.mp_token_expires_at">No disponible</span>
+                        </p>
+                        <div class="d-flex gap-2">
+                          <a t-if="connect_url" class="btn btn-primary" t-att-href="connect_url" target="_top">
+                            <t t-if="partner.mp_account_status == 'connected'">Actualizar conexión</t>
+                            <t t-else="">Conectar con Mercado Pago</t>
+                          </a>
+                          <span t-if="not connect_url" class="text-muted">Configura el Client ID y Secret para habilitar la conexión.</span>
+                        </div>
+                      </t>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </t>
+    </template>
+
     <template id="photographer_watermark_settings" name="Configuración de marca de agua">
       <t t-call="website.layout">
         <div id="wrap" class="oe_structure">
