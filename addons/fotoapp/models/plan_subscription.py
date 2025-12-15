@@ -276,10 +276,12 @@ class FotoappPlanSubscription(models.Model):
 
     @api.model
     def _cron_generate_subscription_debts(self):
+        today = fields.Date.context_today(self)
         domain = [
             ('state', 'in', list(self.BILLABLE_STATES)),
             ('plan_id.code', '!=', FREEMIUM_CODE),
             ('next_billing_date', '!=', False),
+            ('next_billing_date', '<=', today),
         ]
         subscriptions = self.sudo().search(domain)
         subscriptions._generate_subscription_debt()

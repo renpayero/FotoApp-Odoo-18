@@ -1,4 +1,5 @@
-from odoo import fields, models
+from odoo import _, fields, models
+from odoo.exceptions import ValidationError
 
 
 class SaleOrder(models.Model):
@@ -19,6 +20,14 @@ class SaleOrder(models.Model):
 
     def _prepare_payment_transaction_vals(self, **kwargs):
         self._ensure_single_photographer_orders()
+        if len(self) == 1 and not self.fotoapp_photographer_id:
+            photographer = self._fotoapp_detect_single_photographer()
+            if photographer:
+                self.sudo()._apply_photographer_metadata(
+                    photographer.active_plan_subscription_id,
+                    photographer=photographer,
+                )
+                self.sudo()._recompute_fotoapp_commission()
         vals = super()._prepare_payment_transaction_vals(**kwargs)
         if len(self) == 1 and self.fotoapp_photographer_id:
             vals.update({
@@ -111,3 +120,16 @@ class SaleOrder(models.Model):
                 'fotoapp_platform_commission_amount': platform_amount,
                 'fotoapp_photographer_amount': photographer_amount,
             })
+
+    def _fotoapp_detect_single_photographer(self):
+        self.ensure_one()
+        photo_lines = self.order_line.filtered(lambda line: line.foto_photographer_id)
+        if not photo_lines:
+            return False
+        photographer_ids = set(photo_lines.mapped('foto_photographer_id').ids)
+        if len(photographer_ids) > 1:
+            raise ValidationError(_(
+                'El carrito contiene fotos de distintos fotógrafos. Completa o vacía esa compra antes de '
+                'continuar.'
+            ))
+        return photo_lines[:1].foto_photographer_id

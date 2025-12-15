@@ -31,6 +31,7 @@
     'data': [
         'security/ir.model.access.csv',
         'data/fotoapp_plan_data.xml',
+        'data/fotoapp_category_data.xml',
         'data/fotoapp_debt_data.xml',
         'views/views.xml',
         'views/gallery_templates.xml',

@@ -65,9 +65,9 @@
         <list string="Categorías de fotos">
           <field name="name"/>
           <field name="sequence"/>
-          <field name="owner_id"/>
           <field name="estado"/>
           <field name="website_published"/>
+          <field name="display_on_homepage"/>
           <field name="event_count" string="# Eventos"/>
         </list>
       </field>
@@ -84,24 +84,19 @@
                 <field name="name" required="1"/>
                 <field name="description"/>
                 <field name="website_description" widget="html"/>
-                <field name="slug"/>
-                <field name="seo_title"/>
-                <field name="seo_description"/>
+                <field name="slug" readonly="1"/>
               </group>
               <group>
                 <field name="estado" widget="statusbar" statusbar_visible="borrador,publicado,archivado"/>
                 <field name="website_published"/>
                 <field name="display_on_homepage"/>
                 <field name="portal_sequence"/>
-                <field name="allowed_plan_ids" widget="many2many_tags"/>
-                <field name="owner_id"/>
                 <field name="event_count" readonly="1"/>
               </group>
             </group>
             <group>
               <group>
                 <field name="image_cover" widget="image" class="oe_avatar"/>
-                <field name="website_meta_image" widget="image"/>
               </group>
             </group>
           </sheet>

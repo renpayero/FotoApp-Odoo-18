@@ -14,8 +14,18 @@
             <div class="container">
               <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                 <h2 class="h3 mb-0">Categorías</h2>
-                <div class="d-flex align-items-center gap-2">
-                  <span class="text-muted" t-esc="len(categories)"/> categorías publicadas
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                  <span class="text-muted" t-if="total_categories">
+                    Mostrando <t t-esc="len(categories)"/> de <t t-esc="total_categories"/> categorías publicadas
+                  </span>
+                  <span class="text-muted" t-else="">
+                    <t t-esc="len(categories)"/> categorías publicadas
+                  </span>
+                  <a class="btn btn-sm btn-outline-primary"
+                     t-if="total_categories and total_categories &gt; len(categories)"
+                     t-att-href="category_more_url or '/galeria/categorias'">
+                    Ver más
+                  </a>
                 </div>
               </div>
               <div class="row">
@@ -35,7 +45,7 @@
                         </h3>
                         <p class="text-muted mb-2" t-esc="category.website_description and category.website_description[:120]"/>
                         <span class="badge bg-primary">
-                          <t t-esc="category.event_count"/> eventos
+                          <t t-esc="category.website_event_count or 0"/> eventos
                         </span>
                       </div>
                     </div>
@@ -111,6 +121,71 @@
                         <p class="mb-0 text-muted">Por <t t-esc="event.photographer_id.name"/></p>
                       </div>
                     </div>
+                  </div>
+                </t>
+              </div>
+            </div>
+          </section>
+        </div>
+      </t>
+    </template>
+
+    <template id="gallery_category_list" name="Listado completo de categorías">
+      <t t-call="website.layout">
+        <div id="wrap" class="oe_structure">
+          <section class="s_banner bg-200 pb48 pt48">
+            <div class="container">
+              <nav aria-label="breadcrumb" class="mb-3" t-if="breadcrumb">
+                <ol class="breadcrumb">
+                  <t t-foreach="breadcrumb" t-as="item">
+                    <li t-if="item.get('url')" class="breadcrumb-item">
+                      <a t-att-href="item.get('url')" t-esc="item.get('label')"/>
+                    </li>
+                    <li t-else="" class="breadcrumb-item active" aria-current="page">
+                      <t t-esc="item.get('label')"/>
+                    </li>
+                  </t>
+                </ol>
+              </nav>
+              <h1 class="display-5">Todas las categorías</h1>
+              <p class="lead mb-0">Accedé al listado completo de categorías disponibles en la galería.</p>
+            </div>
+          </section>
+
+          <section class="s_cards pt32 pb48">
+            <div class="container">
+              <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <h2 class="h3 mb-0">Categorías disponibles</h2>
+                <span class="text-muted">
+                  <t t-esc="total_categories or len(categories) or 0"/> categorías publicadas
+                </span>
+              </div>
+              <div class="row">
+                <t t-foreach="categories" t-as="category">
+                  <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card h-100 shadow-sm">
+                      <a t-attf-href="/galeria/categoria/#{ category.slug }">
+                        <img class="card-img-top"
+                           t-att-src="category.image_cover and '/web/image/tienda.foto.categoria/%s/image_cover' % category.id or '/web/static/img/placeholder.png'"
+                           t-att-alt="category.name"/>
+                      </a>
+                      <div class="card-body">
+                        <h3 class="h5">
+                          <a class="text-decoration-none" t-attf-href="/galeria/categoria/#{ category.slug }">
+                            <t t-esc="category.name"/>
+                          </a>
+                        </h3>
+                        <p class="text-muted mb-2" t-esc="category.website_description and category.website_description[:120]"/>
+                        <span class="badge bg-primary">
+                          <t t-esc="category.website_event_count or 0"/> eventos
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </t>
+                <t t-if="not categories">
+                  <div class="col-12 text-center text-muted">
+                    Todavía no hay categorías publicadas.
                   </div>
                 </t>
               </div>

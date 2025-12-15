@@ -21,9 +21,6 @@ class TiendaFotoCategoria(models.Model):
         help='Imagen mostrada en tarjetas de la web.'
     )
     slug = fields.Char(string='Slug', required=True)
-    seo_title = fields.Char(string='Título SEO')
-    seo_description = fields.Char(string='Descripción SEO')
-    website_meta_image = fields.Image(string='Imagen SEO', max_width=1200, max_height=630, attachment=True)
     estado = fields.Selection([
         ('borrador', 'Borrador'),
         ('publicado', 'Publicado'),
@@ -33,18 +30,21 @@ class TiendaFotoCategoria(models.Model):
     display_on_homepage = fields.Boolean(string='Mostrar en home', default=False)
     portal_sequence = fields.Integer(string='Orden en portal', default=10)
     is_system_category = fields.Boolean(string='Categoría del sistema', default=False)
-    allowed_plan_ids = fields.Many2many('fotoapp.plan', string='Planes habilitados')
-    owner_id = fields.Many2one( # no hay owner ID, recordemos que las cateogrias estaran predefinidas por el sistema, y solo los admins podran crear categorias desde el backend.
-        comodel_name='res.partner',
-        string='Fotógrafo responsable',
-        readonly=True
-    )
     evento_ids = fields.One2many(
         comodel_name='tienda.foto.evento',
         inverse_name='categoria_id',
         string='Eventos'
     )
-    event_count = fields.Integer(string='Total de eventos', compute='_compute_event_count')
+    event_count = fields.Integer(
+        string='Total de eventos',
+        compute='_compute_event_metrics',
+        store=True,
+    )
+    website_event_count = fields.Integer(
+        string='Eventos publicados en web',
+        compute='_compute_event_metrics',
+        store=True,
+    )
 
     _sql_constraints = [
         ('slug_unique', 'unique(slug)', 'El slug debe ser único.'),
@@ -53,10 +53,14 @@ class TiendaFotoCategoria(models.Model):
     def action_mark_system(self):
         self.write({'is_system_category': True})
 
-    @api.depends('evento_ids')
-    def _compute_event_count(self):
+    @api.depends('evento_ids', 'evento_ids.estado', 'evento_ids.website_published')
+    def _compute_event_metrics(self):
         for record in self:
-            record.event_count = len(record.evento_ids)
+            events = record.evento_ids
+            record.event_count = len(events)
+            record.website_event_count = len(
+                events.filtered(lambda event: event.website_published and event.estado == 'publicado')
+            )
 
     def _prepare_slug(self, value):
         slug_base = value or self.name or ''
@@ -64,11 +68,22 @@ class TiendaFotoCategoria(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        records = self.browse()
+        to_create = []
         for vals in vals_list:
+            vals = dict(vals)
             vals['slug'] = self._prepare_slug(vals.get('slug') or vals.get('name'))
-            if not vals.get('owner_id') and self.env.user.partner_id:
-                vals['owner_id'] = self.env.user.partner_id.id
-        return super().create(vals_list)
+            existing = False
+            if vals.get('is_system_category'):
+                existing = self.search([('slug', '=', vals['slug'])], limit=1)
+            if existing:
+                existing.write(vals)
+                records |= existing
+            else:
+                to_create.append(vals)
+        if to_create:
+            records |= super().create(to_create)
+        return records
 
     def write(self, vals):
         if vals.get('slug'):

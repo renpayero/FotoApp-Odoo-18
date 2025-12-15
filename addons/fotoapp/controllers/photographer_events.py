@@ -46,9 +46,12 @@ class PhotographerEventsController(PhotographerPortalMixin, http.Controller):
         if not partner:
             return denied
 
-        categories = request.env['tienda.foto.categoria'].sudo().search([
-            ('estado', '!=', 'archivado'),
-        ], order='name')
+        category_domain = [
+            ('estado', '=', 'publicado'),
+            ('display_on_homepage', '=', True),
+            ('website_published', '=', True),
+        ]
+        categories = request.env['tienda.foto.categoria'].sudo().search(category_domain, order='name')
         countries = request.env['res.country'].sudo().search([], order='name')
         values = {
             'partner': partner,
@@ -70,19 +73,22 @@ class PhotographerEventsController(PhotographerPortalMixin, http.Controller):
 
         if request.httprequest.method == 'POST':
             name = (post.get('name') or '').strip()
-            categoria_id = post.get('categoria_id')
+            categoria_id_raw = post.get('categoria_id')
+            categoria_id = int(categoria_id_raw) if categoria_id_raw else False
             fecha = self._parse_datetime(post.get('fecha'))
             cover = self._prepare_cover_image(post.get('image_cover'))
             if not name:
                 values['errors'].append('El nombre del evento es obligatorio.')
             if not categoria_id:
                 values['errors'].append('Debes seleccionar una categoría.')
+            elif categoria_id not in categories.ids:
+                values['errors'].append('La categoría seleccionada ya no está disponible.')
             if not fecha:
                 values['errors'].append('Debes indicar una fecha válida.')
             if not values['errors']:
                 vals = {
                     'name': name,
-                    'categoria_id': int(categoria_id),
+                    'categoria_id': categoria_id,
                     'fecha': fields.Datetime.to_string(fecha),
                     'ciudad': post.get('ciudad'),
                     'estado_provincia': post.get('estado_provincia'),
@@ -106,9 +112,12 @@ class PhotographerEventsController(PhotographerPortalMixin, http.Controller):
         event = self._get_event_for_partner(partner, event_id)
         if not event:
             return request.not_found()
-        categories = request.env['tienda.foto.categoria'].sudo().search([
-            ('estado', '!=', 'archivado')
-        ], order='name')
+        category_domain = [
+            ('estado', '=', 'publicado'),
+            ('display_on_homepage', '=', True),
+            ('website_published', '=', True),
+        ]
+        categories = request.env['tienda.foto.categoria'].sudo().search(category_domain, order='name')
         countries = request.env['res.country'].sudo().search([], order='name')
         albums = request.env['tienda.foto.album'].sudo().search([
             ('event_id', '=', event.id)
@@ -130,9 +139,12 @@ class PhotographerEventsController(PhotographerPortalMixin, http.Controller):
             redirect_url = f"/mi/fotoapp/evento/{event.id}"
             if action == 'update_event':
                 fecha = self._parse_datetime(post.get('fecha'))
-                categoria_id = post.get('categoria_id')
+                categoria_id_raw = post.get('categoria_id')
+                categoria_id = int(categoria_id_raw) if categoria_id_raw else False
                 if not categoria_id:
                     values['errors'].append('Selecciona una categoría.')
+                elif categoria_id not in categories.ids:
+                    values['errors'].append('La categoría seleccionada ya no está disponible.')
                 if not fecha:
                     values['errors'].append('Ingresa una fecha válida.')
                 values['event_description_plain'] = post.get('descripcion', '').strip()
@@ -144,7 +156,7 @@ class PhotographerEventsController(PhotographerPortalMixin, http.Controller):
                         'estado_provincia': post.get('estado_provincia'),
                         'pais_id': int(post.get('pais_id')) if post.get('pais_id') else False,
                         'descripcion': post.get('descripcion'),
-                        'categoria_id': int(categoria_id),
+                        'categoria_id': categoria_id,
                     }
                     cover = self._prepare_cover_image(post.get('image_cover'))
                     if cover:

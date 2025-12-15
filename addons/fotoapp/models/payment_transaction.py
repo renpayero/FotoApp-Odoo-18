@@ -21,8 +21,10 @@ class PaymentTransaction(models.Model):
 
     def _send_api_request(self, method, endpoint, *, params=None, data=None, json=None, **kwargs):
         self.ensure_one()
+        self._fotoapp_sync_metadata_from_orders()
         if self.provider_code == 'mercado_pago' and self.fotoapp_photographer_id:
             kwargs.setdefault('seller_access_token', self._fotoapp_get_seller_token())
+
         return super()._send_api_request(
             method,
             endpoint,
@@ -33,6 +35,7 @@ class PaymentTransaction(models.Model):
         )
 
     def _mercado_pago_prepare_preference_request_payload(self):
+        self._fotoapp_sync_metadata_from_orders()
         payload = super()._mercado_pago_prepare_preference_request_payload()
         if self.fotoapp_platform_commission_amount:
             payload['marketplace_fee'] = self._fotoapp_convert_amount(self.fotoapp_platform_commission_amount)
@@ -70,3 +73,38 @@ class PaymentTransaction(models.Model):
         if decimal_places is not None:
             return float_round(amount, precision_digits=decimal_places, rounding_method='DOWN')
         return amount
+
+    def _fotoapp_sync_metadata_from_orders(self):
+        for tx in self:
+            if tx.fotoapp_photographer_id:
+                continue
+            orders = tx.sale_order_ids
+            if not orders:
+                continue
+            photo_lines = orders.mapped('order_line').filtered(lambda line: line.foto_photographer_id)
+            photographers = photo_lines.mapped('foto_photographer_id')
+            if not photographers:
+                continue
+            photographer = photographers[:1]
+            photographer.ensure_one()
+            if len(set(photographers.ids)) > 1:
+                continue
+            subscription = photographer.active_plan_subscription_id
+            plan = subscription.plan_id if subscription else photographer.plan_id
+            commission_percent = (
+                orders[:1].fotoapp_commission_percent
+                if orders[:1].fotoapp_commission_percent
+                else (plan.commission_percent if plan and plan.commission_percent else 0.0)
+            )
+            amount_total = sum(orders.mapped('amount_total'))
+            platform_amount = amount_total * (commission_percent or 0.0) / 100.0
+            photographer_amount = amount_total - platform_amount
+            write_vals = {
+                'fotoapp_photographer_id': photographer.id,
+                'fotoapp_plan_id': plan.id if plan else False,
+                'fotoapp_commission_percent': commission_percent,
+                'fotoapp_platform_commission_amount': platform_amount,
+                'fotoapp_photographer_amount': photographer_amount,
+            }
+            tx.write(write_vals)
+            orders.write(write_vals)

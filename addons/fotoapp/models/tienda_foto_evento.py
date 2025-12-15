@@ -20,7 +20,8 @@ class TiendaFotoEvento(models.Model):
     categoria_id = fields.Many2one(
         comodel_name='tienda.foto.categoria',
         string='Categoría',
-        required=True
+        required=True,
+        domain="[('display_on_homepage', '=', True), ('estado', '=', 'publicado'), ('website_published', '=', True)]"
     )
     photographer_id = fields.Many2one(
         comodel_name='res.partner',
