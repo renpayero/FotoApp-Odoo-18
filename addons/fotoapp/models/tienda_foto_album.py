@@ -13,7 +13,7 @@ class TiendaFotoAlbum(models.Model):
     name = fields.Char(string='Nombre del álbum', required=True)
     sequence = fields.Integer(default=10)
     event_id = fields.Many2one('tienda.foto.evento', string='Evento', required=True, ondelete='cascade')
-    plan_subscription_id = fields.Many2one('fotoapp.plan.subscription', string='Suscripción', related='event_id.plan_subscription_id', store=True, readonly=True)
+    plan_subscription_id = fields.Many2one('sale.subscription', string='Suscripción', related='event_id.plan_subscription_id', store=True, readonly=True)
     photographer_id = fields.Many2one('res.partner', string='Fotógrafo', related='event_id.photographer_id', store=True, readonly=True)
     partner_id = fields.Many2one('res.partner', string='Cliente asociado')
     customer_email = fields.Char(string='Email del cliente')

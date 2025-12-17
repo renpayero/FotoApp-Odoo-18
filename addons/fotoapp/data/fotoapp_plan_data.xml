@@ -10,6 +10,7 @@
       <field name="commission_percent">80.0</field>
       <field name="description">Plan gratuito con comisiones superiores pensado para fotógrafos que recién comienzan.</field>
       <field name="website_published">True</field>
+      <field name="is_freemium">True</field>
     </record>
 
     <record id="fotoapp_plan_basic" model="fotoapp.plan">

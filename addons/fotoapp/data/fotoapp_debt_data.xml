@@ -29,9 +29,9 @@
       <field name="active" eval="True"/>
       <field name="interval_number">1</field>
       <field name="interval_type">days</field>
-      <field name="model_id" ref="fotoapp.model_fotoapp_plan_subscription"/>
+      <field name="model_id" ref="subscription_oca.model_sale_subscription"/>
       <field name="state">code</field>
-      <field name="code">model._cron_generate_subscription_debts()</field>
+      <field name="code">model.fotoapp_cron_generate_subscription_debts()</field>
     </record>
 
     <record id="cron_process_subscription_debts" model="ir.cron">
@@ -39,9 +39,19 @@
       <field name="active" eval="True"/>
       <field name="interval_number">1</field>
       <field name="interval_type">days</field>
-      <field name="model_id" ref="fotoapp.model_fotoapp_plan_subscription"/>
+      <field name="model_id" ref="subscription_oca.model_sale_subscription"/>
       <field name="state">code</field>
-      <field name="code">model._cron_handle_overdue_debts()</field>
+      <field name="code">model.fotoapp_cron_handle_overdue_debts()</field>
+    </record>
+
+    <record id="cron_invoice_subscription_debts" model="ir.cron">
+      <field name="name">FotoApp - Generar facturas de planes</field>
+      <field name="active" eval="True"/>
+      <field name="interval_number">1</field>
+      <field name="interval_type">days</field>
+      <field name="model_id" ref="fotoapp.model_fotoapp_debt"/>
+      <field name="state">code</field>
+      <field name="code">model.fotoapp_cron_invoice_pending_debts()</field>
     </record>
   </data>
 </odoo>

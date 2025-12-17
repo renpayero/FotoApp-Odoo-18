@@ -19,12 +19,14 @@
     'depends': [
         'base',
         'product',
+        'account',
         'website',
         'website_sale',
         'portal',
         'mail',
         'crm',
         'payment_mercado_pago',
+        'subscription_oca',
     ],
 
     # always loaded
@@ -33,6 +35,7 @@
         'data/fotoapp_plan_data.xml',
         'data/fotoapp_category_data.xml',
         'data/fotoapp_debt_data.xml',
+        'data/fotoapp_subscription_template.xml',
         'views/views.xml',
         'views/gallery_templates.xml',
         'views/photographer_shared_templates.xml',
@@ -49,5 +52,6 @@
     'installable': True,
     'application': True,
     'auto_install': False,
+    'post_init_hook': 'post_init_hook',
 }
 

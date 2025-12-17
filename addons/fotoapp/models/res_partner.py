@@ -56,15 +56,17 @@ class ResPartner(models.Model):
         string='Fotos subidas'
     )
     plan_subscription_ids = fields.One2many(
-        comodel_name='fotoapp.plan.subscription',
+        comodel_name='sale.subscription',
         inverse_name='partner_id',
-        string='Suscripciones'
+        string='Suscripciones',
+        domain="[('fotoapp_is_photographer_plan', '=', True)]"
     )
     active_plan_subscription_id = fields.Many2one(
-        comodel_name='fotoapp.plan.subscription',
+        comodel_name='sale.subscription',
         compute='_compute_active_subscription',
         string='Suscripción vigente',
-        store=True
+        store=True,
+        domain="[('fotoapp_is_photographer_plan', '=', True)]"
     )
     plan_id = fields.Many2one(
         comodel_name='fotoapp.plan',
@@ -104,6 +106,15 @@ class ResPartner(models.Model):
         ('error', 'Con error'),
     ], string='Estado Mercado Pago', default='not_connected', tracking=True)
     mp_account_email = fields.Char(string='Email Mercado Pago', groups='base.group_system')
+    afip_cuit = fields.Char(string='CUIT / ID fiscal')
+    afip_tax_condition = fields.Selection([
+        ('ri', 'Responsable Inscripto'),
+        ('mono', 'Monotributista'),
+        ('exempt', 'Exento'),
+        ('cf', 'Consumidor Final'),
+    ], string='Condición frente a IVA', default='cf')
+    afip_fiscal_address = fields.Char(string='Domicilio fiscal')
+    afip_preferred_pos = fields.Char(string='Punto de venta preferido')
 
     def get_watermark_payload(self):
         self.ensure_one()
@@ -159,15 +170,16 @@ class ResPartner(models.Model):
         return partners
 
     def _ensure_default_photo_plan(self): # Activa el plan freemium si el fotógrafo no tiene una suscripción activa
-        PlanSubscription = self.env['fotoapp.plan.subscription']
+        SaleSubscription = self.env['sale.subscription']
         freemium_plan = self._get_fotoapp_plan('FREEMIUM')
         if not freemium_plan:
             return
         active_states = {'trial', 'active', 'grace'}
         for partner in self: # para cada fotógrafo sin suscripción activa se le asigna el plan freemium 
-            existing = PlanSubscription.search([
+            existing = SaleSubscription.search([
                 ('partner_id', '=', partner.id),
                 ('state', 'in', list(active_states)),
+                ('fotoapp_is_photographer_plan', '=', True),
             ], limit=1)
             if existing:
                 continue
@@ -179,20 +191,11 @@ class ResPartner(models.Model):
         return plan
 
     def _activate_photo_plan(self, plan, order=None): # Crea una suscripción para el plan indicado, vinculada al pedido si se proporciona, y la activa inmediatamente
-        PlanSubscription = self.env['fotoapp.plan.subscription']
+        SaleSubscription = self.env['sale.subscription']
         today = fields.Date.context_today(self)
-        next_date = fields.Date.add(today, days=30)
+        note = order and f"Activado desde pedido #{order.name}" or False
         for partner in self:
-            subscription = PlanSubscription.create({
-                'partner_id': partner.id,
-                'plan_id': plan.id,
-                'state': 'draft',
-                'start_date': today,
-                'activation_date': today,
-                'next_billing_date': next_date,
-                'notes': order and f"Activado desde pedido #{order.name}" or False,
-            })
-            subscription.action_activate()
+            SaleSubscription.fotoapp_create_subscription(partner, plan, notes=note)
 
     def _mp_refresh_token_if_needed(self, force=False):
         IrConfig = self.env['ir.config_parameter'].sudo()

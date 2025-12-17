@@ -31,7 +31,7 @@ class TiendaFotoAsset(models.Model):
         readonly=True
     )
     plan_subscription_id = fields.Many2one(
-        comodel_name='fotoapp.plan.subscription',
+        comodel_name='sale.subscription',
         related='evento_id.plan_subscription_id',
         store=True,
         string='Suscripción'
@@ -142,7 +142,7 @@ class TiendaFotoAsset(models.Model):
 
     def _resolve_plan_subscription(self, vals, photographer_id):
         if vals.get('plan_subscription_id'):
-            return self.env['fotoapp.plan.subscription'].browse(vals['plan_subscription_id'])
+            return self.env['sale.subscription'].browse(vals['plan_subscription_id'])
         event_id = vals.get('evento_id')
         if event_id:
             event = self.env['tienda.foto.evento'].browse(event_id)

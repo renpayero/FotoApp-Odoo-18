@@ -17,3 +17,4 @@ from . import res_users
 from . import res_config_settings
 from . import payment_transaction
 from . import payment_provider
+from . import sale_subscription_template

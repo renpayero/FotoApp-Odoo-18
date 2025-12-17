@@ -30,7 +30,7 @@ class TiendaFotoEvento(models.Model):
         domain="[('is_photographer', '=', True)]" # Asegura que solo se puedan seleccionar socios que sean fotógrafos
     )
     plan_subscription_id = fields.Many2one(
-        comodel_name='fotoapp.plan.subscription',
+        comodel_name='sale.subscription',
         string='Suscripción vinculada',
         compute='_compute_plan_subscription', 
         store=True,
@@ -114,7 +114,9 @@ class TiendaFotoEvento(models.Model):
                 continue
             if event.plan_subscription_id and event.plan_subscription_id.partner_id == event.photographer_id: # Mantener la suscripción si ya está vinculada correctamente
                 continue
-            active_subscription = event.photographer_id.plan_subscription_ids.filtered(lambda s: s.state in {'trial', 'active', 'grace'})[:1]
+            active_subscription = event.photographer_id.plan_subscription_ids.filtered(
+                lambda s: s.fotoapp_is_photographer_plan and s.state in {'trial', 'active', 'grace'}
+            )[:1]
             event.plan_subscription_id = active_subscription.id if active_subscription else False
 
     @api.depends('portal_token')

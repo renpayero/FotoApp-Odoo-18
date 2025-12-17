@@ -40,7 +40,7 @@ class SaleOrder(models.Model):
         return vals
 
     def _process_fotoapp_plan_lines(self):
-        PlanSubscription = self.env['fotoapp.plan.subscription']
+        PlanSubscription = self.env['sale.subscription']
         active_states = {'draft', 'trial', 'active', 'grace'}
         for line in self.order_line:
             plan = line.product_id.product_tmpl_id.fotoapp_plan_id
@@ -49,6 +49,7 @@ class SaleOrder(models.Model):
             partner = self.partner_id.commercial_partner_id
             subscription = PlanSubscription.search([
                 ('partner_id', '=', partner.id),
+                ('fotoapp_is_photographer_plan', '=', True),
                 ('state', 'in', list(active_states)),
             ], limit=1)
             if subscription and subscription.plan_id == plan:
@@ -71,6 +72,9 @@ class SaleOrder(models.Model):
         ])
         if debts:
             debts.mark_paid(paid_date=fields.Datetime.now())
+            mp_transactions = self.transaction_ids.filtered(lambda tx: tx.provider_code == 'mercado_pago' and tx.state == 'done')
+            if mp_transactions:
+                debts._fotoapp_register_gateway_payment(transaction=mp_transactions[:1])
 
     def _ensure_single_photographer_orders(self):
         for order in self:

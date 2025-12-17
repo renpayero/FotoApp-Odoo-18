@@ -53,6 +53,18 @@
               </field>
             </group>
           </page>
+          <page string="Fiscal FotoApp" name="fotoapp_fiscal">
+            <group modifiers="{'invisible': [('is_photographer', '=', False)]}">
+              <group>
+                <field name="afip_cuit" placeholder="20-12345678-9"/>
+                <field name="afip_tax_condition"/>
+              </group>
+              <group>
+                <field name="afip_fiscal_address"/>
+                <field name="afip_preferred_pos" placeholder="0001"/>
+              </group>
+            </group>
+          </page>
         </xpath>
       </field>
     </record>
@@ -125,6 +137,7 @@
           <field name="name"/>
           <field name="code"/>
           <field name="monthly_fee"/>
+          <field name="billing_interval"/>
           <field name="storage_limit_mb"/>
           <field name="commission_percent"/>
           <field name="subscription_count"/>
@@ -145,6 +158,7 @@
                 <field name="code" required="1"/>
                 <field name="sequence"/>
                 <field name="monthly_fee"/>
+                <field name="billing_interval"/>
                 <field name="commission_percent"/>
                 <field name="website_published" widget="boolean_toggle"/>
               </group>
@@ -163,11 +177,18 @@
               <group>
                 <field name="product_template_id" readonly="1"/>
                 <field name="product_variant_id" readonly="1"/>
+                <field name="subscription_template_id" readonly="1"/>
+                <field name="company_id"/>
+                <field name="journal_id"/>
+                <field name="income_account_id"/>
+                <field name="tax_ids" widget="many2many_tags"/>
               </group>
             </group>
             <notebook>
               <page string="Suscripciones">
-                <field name="subscription_ids" readonly="1" context="{'default_plan_id': id}"/>
+                <field name="subscription_ids"
+                       readonly="1"
+                       context="{'default_plan_id': id, 'default_fotoapp_is_photographer_plan': True}"/>
               </page>
             </notebook>
           </sheet>
@@ -183,9 +204,9 @@
 
     <record id="view_fotoapp_plan_subscription_tree" model="ir.ui.view">
       <field name="name">fotoapp.plan.subscription.tree</field>
-      <field name="model">fotoapp.plan.subscription</field>
+      <field name="model">sale.subscription</field>
       <field name="arch" type="xml">
-        <list string="Suscripciones activas">
+        <list string="Suscripciones activas" create="0" edit="0">
           <field name="name"/>
           <field name="partner_id"/>
           <field name="partner_ref"/>
@@ -199,9 +220,9 @@
 
     <record id="view_fotoapp_plan_subscription_form" model="ir.ui.view">
       <field name="name">fotoapp.plan.subscription.form</field>
-      <field name="model">fotoapp.plan.subscription</field>
+      <field name="model">sale.subscription</field>
       <field name="arch" type="xml">
-        <form string="Suscripción">
+        <form string="Suscripción" create="0">
           <sheet>
             <group>
               <group>
@@ -229,8 +250,9 @@
 
     <record id="action_fotoapp_plan_subscription" model="ir.actions.act_window">
       <field name="name">Suscripciones</field>
-      <field name="res_model">fotoapp.plan.subscription</field>
+      <field name="res_model">sale.subscription</field>
       <field name="view_mode">list,form</field>
+      <field name="domain">[('fotoapp_is_photographer_plan', '=', True)]</field>
     </record>
 
     <menuitem id="menu_fotoapp_catalog" name="Catálogo" parent="fotoapp.menu_fotoapp_root" sequence="10" groups="base.group_user"/>
