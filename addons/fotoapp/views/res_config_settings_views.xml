@@ -117,6 +117,34 @@
               </div>
             </div>
           </div>
+          <div class="app_settings_block" string="Ciclo de vida de fotos" data-key="fotoapp_asset_lifecycle">
+            <h2>Ciclo de vida de fotos</h2>
+            <p class="text-muted">
+              Definí cuánto tiempo permanecen publicadas las fotos sin ventas y cuándo se eliminan si permanecen archivadas.
+            </p>
+            <div class="row mt16 o_settings_container">
+              <div class="col-12 col-lg-6 o_setting_box">
+                <div class="o_setting_left">
+                  <span class="fa fa-clock-o" title="Archivado"/>
+                </div>
+                <div class="o_setting_right">
+                  <label for="fotoapp_asset_archive_days" string="Archivar tras (días sin compras)"/>
+                  <div class="text-muted">Cantidad de días desde la última publicación o venta para archivar la foto.</div>
+                  <field name="fotoapp_asset_archive_days" min="1"/>
+                </div>
+              </div>
+              <div class="col-12 col-lg-6 o_setting_box">
+                <div class="o_setting_left">
+                  <span class="fa fa-trash" title="Eliminación"/>
+                </div>
+                <div class="o_setting_right">
+                  <label for="fotoapp_asset_delete_days" string="Eliminar tras (días archivada)"/>
+                  <div class="text-muted">Plazo para borrar definitivamente una foto si sigue archivada.</div>
+                  <field name="fotoapp_asset_delete_days" min="1"/>
+                </div>
+              </div>
+            </div>
+          </div>
         </xpath>
       </field>
     </record>

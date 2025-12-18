@@ -2,6 +2,7 @@ import base64
 import hashlib
 import logging
 import secrets
+from datetime import timedelta
 from io import BytesIO
 
 from odoo import api, fields, models, _
@@ -43,8 +44,8 @@ class TiendaFotoAsset(models.Model):
     imagen_watermark = fields.Image(string='Imagen con Marca de Agua', attachment=True)
     precio = fields.Monetary(string='Precio', currency_field='currency_id', required=True)
     currency_id = fields.Many2one('res.currency', default=lambda self: self.env.company.currency_id.id)
-    publicada = fields.Boolean(string='Publicada', default=False)
-    website_published = fields.Boolean(string='Visible en web', default=False)
+    publicada = fields.Boolean(string='Publicada', default=True)
+    website_published = fields.Boolean(string='Visible en web', default=True)
     checksum = fields.Char(string='Checksum', readonly=True)
     download_token = fields.Char(string='Token de descarga')
     batch_id = fields.Char(string='Lote de subida')
@@ -63,7 +64,11 @@ class TiendaFotoAsset(models.Model):
         ('sold', 'Vendida'),
         ('delivered', 'Entregada'),
         ('archived', 'Archivada')
-    ], string='Estado', default='draft', tracking=True)
+    ], string='Estado', default='published', tracking=True)
+    publicada_por_ultima_vez = fields.Datetime(string='Publicada por última vez', copy=False, default=lambda self: fields.Datetime.now())
+    archived_at = fields.Datetime(string='Archivada el', copy=False)
+    days_until_archive = fields.Integer(string='Días hasta archivado', compute='_compute_lifecycle_deadlines')
+    days_until_delete = fields.Integer(string='Días hasta eliminación', compute='_compute_lifecycle_deadlines')
     portal_token = fields.Char(string='Token portal', copy=False)
     portal_url = fields.Char(string='URL portal', compute='_compute_portal_url')
     sale_order_line_ids = fields.One2many('sale.order.line', 'foto_asset_id', string='Líneas de venta')
@@ -120,7 +125,11 @@ class TiendaFotoAsset(models.Model):
             checksum = self._compute_checksum(image_b64)
             if checksum:
                 vals['checksum'] = checksum
+            vals.setdefault('publicada_por_ultima_vez', fields.Datetime.now())
             vals.setdefault('portal_token', self._generate_portal_token())
+            vals.setdefault('publicada', True)
+            vals.setdefault('website_published', True)
+            vals.setdefault('lifecycle_state', 'published')
             self._generate_watermark(vals)
         return super().create(vals_list)
 
@@ -241,6 +250,9 @@ class TiendaFotoAsset(models.Model):
         return event.photographer_id
     
     def write(self, vals):
+        previous_states = {}
+        if 'lifecycle_state' in vals and not self.env.context.get('skip_lifecycle_side_effects'):
+            previous_states = {asset.id: asset.lifecycle_state for asset in self}
         if 'imagen_original' in vals:
             vals = self._generate_watermark(vals)
             size_bytes = self._compute_file_size(vals['imagen_original'])
@@ -252,6 +264,14 @@ class TiendaFotoAsset(models.Model):
         if vals.get('portal_token') is False:
             vals['portal_token'] = self._generate_portal_token()
         res = super().write(vals)
+        if previous_states:
+            for asset in self:
+                old_state = previous_states.get(asset.id)
+                new_state = asset.lifecycle_state
+                if new_state == 'published' and old_state != 'published':
+                    asset._on_published()
+                if new_state == 'archived' and old_state != 'archived':
+                    asset._on_archived()
         if any(key in vals for key in ['precio', 'name']):
             self._sync_sale_products()
         return res
@@ -348,7 +368,12 @@ class TiendaFotoAsset(models.Model):
         for asset in self:
             asset.sale_count = len(asset.sale_order_line_ids)
             asset.sale_total_amount = sum(asset.sale_order_line_ids.mapped('price_total'))
-            dates = asset.sale_order_line_ids.mapped('order_id.date_order')
+            dates = []
+            for line in asset.sale_order_line_ids:
+                order = line.order_id
+                order_date = getattr(order, 'confirmation_date', False) or order.date_order
+                if order_date:
+                    dates.append(order_date)
             asset.last_sale_date = max(dates) if dates else False
 
     @api.depends('portal_token')
@@ -359,5 +384,111 @@ class TiendaFotoAsset(models.Model):
 
     def _generate_portal_token(self):
         return secrets.token_urlsafe(16)
+
+    def action_publish(self):
+        self.write({'lifecycle_state': 'published', 'publicada': True, 'website_published': True})
+
+    def action_archive(self):
+        self.write({'lifecycle_state': 'archived', 'publicada': False, 'website_published': False})
+
+    def _on_published(self):
+        now = fields.Datetime.now()
+        values = {
+            'publicada_por_ultima_vez': now,
+            'archived_at': False,
+            'publicada': True,
+            'website_published': True,
+        }
+        self.with_context(skip_lifecycle_side_effects=True).write(values)
+
+    def _on_archived(self):
+        now = fields.Datetime.now()
+        values = {
+            'archived_at': now,
+            'publicada': False,
+            'website_published': False,
+        }
+        self.with_context(skip_lifecycle_side_effects=True).write(values)
+
+    def _bump_publication_clock(self):
+        now = fields.Datetime.now()
+        self.with_context(skip_lifecycle_side_effects=True).write({'publicada_por_ultima_vez': now})
+
+    def _lifecycle_anchor_date(self):
+        self.ensure_one()
+        anchor = self.publicada_por_ultima_vez or self.create_date
+        if self.last_sale_date and (not anchor or self.last_sale_date > anchor):
+            anchor = self.last_sale_date
+        return anchor
+
+    @api.model
+    def _get_lifecycle_config(self):
+        icp = self.env['ir.config_parameter'].sudo()
+        archive_days = self._safe_int_param(icp, 'fotoapp.asset_archive_days', 30)
+        delete_days = self._safe_int_param(icp, 'fotoapp.asset_delete_days', 15)
+        return archive_days, delete_days
+
+    @staticmethod
+    def _safe_int_param(config, key, default):
+        try:
+            raw_value = config.get_param(key)
+            return int(raw_value) if raw_value is not None else int(default)
+        except (TypeError, ValueError):
+            return int(default)
+
+    def _get_archive_deadline(self, archive_days):
+        self.ensure_one()
+        base_date = self._lifecycle_anchor_date()
+        if not archive_days or not base_date:
+            return False
+        return base_date + timedelta(days=archive_days)
+
+    def _get_delete_deadline(self, delete_days):
+        self.ensure_one()
+        base_date = self.archived_at or self.write_date or self.create_date
+        if not delete_days or not base_date:
+            return False
+        return base_date + timedelta(days=delete_days)
+
+    @api.depends('publicada_por_ultima_vez', 'archived_at', 'lifecycle_state', 'last_sale_date')
+    def _compute_lifecycle_deadlines(self):
+        archive_days, delete_days = self._get_lifecycle_config()
+        now = fields.Datetime.now()
+        for asset in self:
+            days_to_archive = False
+            days_to_delete = False
+            if asset.lifecycle_state == 'published':
+                deadline = asset._get_archive_deadline(archive_days)
+                if deadline:
+                    days_to_archive = max((deadline - now).days, 0)
+            if asset.lifecycle_state == 'archived':
+                deadline = asset._get_delete_deadline(delete_days)
+                if deadline:
+                    days_to_delete = max((deadline - now).days, 0)
+            asset.days_until_archive = days_to_archive
+            asset.days_until_delete = days_to_delete
+
+    @api.model
+    def cron_manage_photo_lifecycle(self):
+        archive_days, delete_days = self._get_lifecycle_config()
+        now = fields.Datetime.now()
+
+        published_assets = self.search([('lifecycle_state', '=', 'published')])
+        to_archive = self.browse()
+        for asset in published_assets:
+            deadline = asset._get_archive_deadline(archive_days)
+            if deadline and deadline <= now:
+                to_archive |= asset
+        if to_archive:
+            to_archive.action_archive()
+
+        archived_assets = self.search([('lifecycle_state', '=', 'archived')])
+        to_delete = self.browse()
+        for asset in archived_assets:
+            deadline = asset._get_delete_deadline(delete_days)
+            if deadline and deadline <= now:
+                to_delete |= asset
+        if to_delete:
+            to_delete.unlink()
     
 

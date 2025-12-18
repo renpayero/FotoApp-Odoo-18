@@ -93,6 +93,7 @@
                                 <th>Precio</th>
                                 <th>Tamaño</th>
                                 <th>Estado</th>
+                                <th>Archiva en</th>
                                 <th></th>
                               </tr>
                             </thead>
@@ -132,6 +133,12 @@
                                   <span class="badge text-uppercase" t-attf-class="badge bg-#{'success' if photo.lifecycle_state == 'published' else ('secondary' if photo.lifecycle_state == 'draft' else 'dark')}">
                                     <t t-esc="photo.lifecycle_state or 'pending'"/>
                                   </span>
+                                </td>
+                                <td>
+                                  <t t-if="photo.lifecycle_state == 'published' and photo.days_until_archive is not False">
+                                    <span t-esc="photo.days_until_archive"/> días
+                                  </t>
+                                  <t t-if="photo.lifecycle_state != 'published' or photo.days_until_archive is False">—</t>
                                 </td>
                                 <td class="text-end">
                                   <form method="post" class="d-inline">
@@ -193,6 +200,7 @@
                             <th>Tamaño</th>
                             <th>Estado</th>
                             <th>Archivada</th>
+                            <th>Elimina en</th>
                             <th></th>
                           </tr>
                         </thead>
@@ -217,7 +225,18 @@
                             <td>
                               <span class="badge bg-dark text-uppercase" t-esc="photo.lifecycle_state or 'archived'"/>
                             </td>
-                            <td t-esc="photo.write_date and photo.write_date.strftime('%d/%m/%Y')"/>
+                            <td>
+                              <t t-if="photo.archived_at">
+                                <t t-esc="photo.archived_at.strftime('%d/%m/%Y')"/>
+                              </t>
+                              <t t-if="not photo.archived_at">—</t>
+                            </td>
+                            <td>
+                              <t t-if="photo.days_until_delete is not False">
+                                <span t-esc="photo.days_until_delete"/> días
+                              </t>
+                              <t t-if="photo.days_until_delete is False">—</t>
+                            </td>
                             <td class="text-end">
                               <form method="post" class="d-inline">
                                 <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>

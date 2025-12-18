@@ -36,6 +36,7 @@
         'data/fotoapp_category_data.xml',
         'data/fotoapp_debt_data.xml',
         'data/fotoapp_subscription_template.xml',
+        'data/ir_cron_fotoapp_lifecycle.xml',
         'views/views.xml',
         'views/gallery_templates.xml',
         'views/photographer_shared_templates.xml',

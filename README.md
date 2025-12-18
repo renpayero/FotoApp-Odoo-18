@@ -62,22 +62,11 @@ FotoApp es un módulo vertical para Odoo 18 que permite a fotógrafos publicar, 
 
 ### COMANDOS ESCENCIALES
 
-configuracion de suscripciones, por cada susripcion se crea una plantilla de fotoapp template.
-
-
+RESET BASE DE DATOS:
 docker compose exec odoo odoo --db_host=db --db_port=5432 --db_user=odoo --db_password=odoo -d fotoapp -u fotoapp --stop-after-init
 
-Para abrir el shell:
+Para abrir el odoo shell:
 docker compose exec odoo odoo shell --db_host=db --db_port=5432 --db_user=odoo --db_password=odoo -d fotoapp
-
------
-
-<!-- subs = env['sale.subscription'].browse(24)    # o busca por partner
-subs.mapped('next_billing_date')                      # confirma que está en 2025-12-08
-env['sale.subscription'].fotoapp_cron_generate_subscription_debts()
-env['fotoapp.debt'].search([('subscription_id', '=', subs.id)]).mapped(
-    lambda d: (d.billing_date, d.state, d.amount)
-) -->
 
 ----------
 
@@ -88,3 +77,53 @@ subs.write({'next_billing_date': fields.Date.today()})  # forzá la fecha
 env['sale.subscription'].fotoapp_cron_generate_subscription_debts()
 debts = env['fotoapp.debt'].search([('subscription_id', '=', subs.id)])
 debts.read(['billing_date', 'state', 'partner_id'])
+
+-----------
+
+# Archivar forzado (simula +30 días sin ventas)
+from odoo import fields
+from dateutil.relativedelta import relativedelta
+
+asset = env['tienda.foto.asset'].search([('numero_dorsal','=','28')], limit=1)
+old = fields.Datetime.now() - relativedelta(days=31)
+asset.write({'publicada_por_ultima_vez': old, 'last_sale_date': False})
+env['tienda.foto.asset'].cron_manage_photo_lifecycle()
+env.cr.commit()  # <--- commit necesario
+
+asset = env['tienda.foto.asset'].browse(asset.id)
+asset.read(['lifecycle_state','publicada','website_published','publicada_por_ultima_vez','last_sale_date'])
+
+## explicacion
+- from odoo import fields: importa utilidades de Odoo para manejar fechas/horas.
+- from dateutil.relativedelta import relativedelta: importa un helper para restar periodos (p.ej. días).
+- asset = env['tienda.foto.asset'].search([('numero_dorsal','=','28')], limit=1): busca la foto con dorsal 28.
+- old = fields.Datetime.now() - relativedelta(days=31): calcula una fecha/hora 31 días atrás.
+- asset.write({'publicada_por_ultima_vez': old, 'last_sale_date': False}): fuerza que la última publicación sea hace 31 días y borra cualquier fecha de última venta.
+- env['tienda.foto.asset'].cron_manage_photo_lifecycle(): ejecuta el cron de ciclo de vida para archivar/eliminar según reglas.
+- nv.cr.commit(): confirma los cambios en la base (sin esto, el web no los vería).
+- asset = env['tienda.foto.asset'].browse(asset.id): vuelve a obtener el registro desde la base.
+- asset.read(['lifecycle_state','publicada','website_published','publicada_por_ultima_vez','last_sale_date']): lee y muestra los campos clave para verificar el estado final.
+
+# Eliminar forzado (simula +15 días archivada)
+from odoo import fields
+from dateutil.relativedelta import relativedelta
+
+asset = env['tienda.foto.asset'].search([('numero_dorsal','=','28')], limit=1)
+asset.action_archive()  # asegura estado archivado
+asset.write({'archived_at': fields.Datetime.now() - relativedelta(days=16)})
+env['tienda.foto.asset'].cron_manage_photo_lifecycle()
+env.cr.commit()
+
+asset.exists() 
+
+## explicacion
+
+- from odoo import fields: importa utilidades de Odoo para manejar fechas/horas.
+- from dateutil.relativedelta import relativedelta: helper para restar periodos (días en este caso).
+- asset = env['tienda.foto.asset'].search([('numero_dorsal','=','28')], limit=1): busca la foto con dorsal 28.
+- asset.action_archive(): la deja en estado archivado y apaga visibilidad.
+- asset.write({'archived_at': fields.Datetime.now() - relativedelta(days=16)}): simula que fue archivada hace 16 días (más de los 15 configurados).
+- env['tienda.foto.asset'].cron_manage_photo_lifecycle(): ejecuta el cron de ciclo de vida; al ver que pasaron los días - configurados, elimina la foto.
+- env.cr.commit(): confirma la eliminación en la base de datos.
+- asset.exists(): devuelve False si la foto fue borrada, True si aún existe.
+

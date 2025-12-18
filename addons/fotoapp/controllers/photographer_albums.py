@@ -103,12 +103,10 @@ class PhotographerAlbumsController(PhotographerPortalMixin, http.Controller):
                 photo_id = int(post.get('photo_id')) if post.get('photo_id') else False
                 photo = self._get_asset_for_partner(partner, photo_id)
                 if photo:
-                    values_to_write = {}
                     if action == 'archive_photo':
-                        values_to_write.update({'lifecycle_state': 'archived', 'website_published': False, 'publicada': False})
+                        photo.sudo().action_archive()
                     else:
-                        values_to_write.update({'lifecycle_state': 'published', 'website_published': True, 'publicada': True})
-                    photo.sudo().write(values_to_write)
+                        photo.sudo().action_publish()
             elif action == 'update_photo_price':
                 photo_id = int(post.get('photo_id')) if post.get('photo_id') else False
                 photo = self._get_asset_for_partner(partner, photo_id)

@@ -32,7 +32,7 @@ class PhotographerAssetsController(PhotographerPortalMixin, http.Controller):
             photo = self._get_asset_for_partner(partner, int(post.get('photo_id')))
             if photo:
                 if action == 'restore':
-                    photo.sudo().write({'lifecycle_state': 'ready_for_sale'})
+                    photo.sudo().action_publish()
                 elif action == 'delete':
                     photo.sudo().unlink()
             return request.redirect('/mi/fotoapp/fotos/archivadas')

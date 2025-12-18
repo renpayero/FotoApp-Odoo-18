@@ -16,6 +16,7 @@ class SaleOrder(models.Model):
         for order in self:
             order._process_fotoapp_plan_lines()
             order._process_fotoapp_debt_payments()
+            order._refresh_photo_publication_clock()
         return res
 
     def _prepare_payment_transaction_vals(self, **kwargs):
@@ -124,6 +125,11 @@ class SaleOrder(models.Model):
                 'fotoapp_platform_commission_amount': platform_amount,
                 'fotoapp_photographer_amount': photographer_amount,
             })
+
+    def _refresh_photo_publication_clock(self):
+        assets = self.mapped('order_line.foto_asset_id')
+        if assets:
+            assets.sudo()._bump_publication_clock()
 
     def _fotoapp_detect_single_photographer(self):
         self.ensure_one()

@@ -52,3 +52,13 @@ class ResConfigSettings(models.TransientModel):
         string='Passphrase certificado',
         config_parameter='fotoapp.afip_passphrase'
     )
+    fotoapp_asset_archive_days = fields.Integer(
+        string='Días para archivar fotos sin ventas',
+        default=30,
+        config_parameter='fotoapp.asset_archive_days'
+    )
+    fotoapp_asset_delete_days = fields.Integer(
+        string='Días para eliminar fotos archivadas',
+        default=15,
+        config_parameter='fotoapp.asset_delete_days'
+    )
