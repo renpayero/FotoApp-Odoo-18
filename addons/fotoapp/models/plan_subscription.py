@@ -371,7 +371,18 @@ class SaleSubscription(models.Model):
 		template = plan._get_subscription_template() if plan else False
 		if not template:
 			raise ValidationError(_('Configurá una plantilla de suscripción para el plan %(plan)s.', plan=plan.name if plan else 'N/A'))
-		pricelist = partner.property_product_pricelist or self.env['product.pricelist'].search([], limit=1)
+		Pricelist = self.env['product.pricelist'].sudo().with_context(active_test=False)
+		pricelist = partner.with_context(active_test=False).property_product_pricelist
+		if not pricelist:
+			pricelist = Pricelist.search([], limit=1)
+		if not pricelist:
+			pricelist = Pricelist.search([('name', 'ilike', 'Public')], limit=1)
+		if not pricelist:
+			pricelist = self._fotoapp_get_default_pricelist()
+		if not pricelist:
+			raise ValidationError(_('No se encontró una lista de precios para la suscripción. Creá o configura una lista de precios por defecto.'))
+		if not pricelist.active:
+			pricelist.write({'active': True})
 		today = fields.Date.context_today(self)
 		line_commands = plan._prepare_subscription_line_commands() if plan else []
 		next_cycle = today + plan._get_billing_relativedelta() if plan else fields.Date.add(today, days=30)
