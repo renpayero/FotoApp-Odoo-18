@@ -47,6 +47,8 @@
         'views/plan_templates.xml',
         'views/photographer_debt_templates.xml',
         'views/order_templates.xml',
+        'views/manual_payment_templates.xml',
+        'views/checkout_guest_templates.xml',
         'views/res_config_settings_views.xml',
     ],
     'license': 'AGPL-3',

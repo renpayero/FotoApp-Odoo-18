@@ -74,6 +74,13 @@ class PaymentTransaction(models.Model):
             return float_round(amount, precision_digits=decimal_places, rounding_method='DOWN')
         return amount
 
+    def _set_done(self, state_message=None, extra_allowed_states=()):
+        res = super()._set_done(state_message=state_message, extra_allowed_states=extra_allowed_states)
+        for tx in self:
+            if tx.sale_order_ids:
+                tx.sale_order_ids._fotoapp_send_download_email()
+        return res
+
     def _fotoapp_sync_metadata_from_orders(self):
         for tx in self:
             if tx.fotoapp_photographer_id:

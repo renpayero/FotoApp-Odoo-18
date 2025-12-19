@@ -1,3 +1,5 @@
+import secrets
+from dateutil.relativedelta import relativedelta
 from odoo import _, fields, models
 from odoo.exceptions import ValidationError
 
@@ -10,6 +12,9 @@ class SaleOrder(models.Model):
     fotoapp_commission_percent = fields.Float(string='Comisión del plan (%)', copy=False)
     fotoapp_platform_commission_amount = fields.Monetary(string='Comisión plataforma', currency_field='currency_id', copy=False)
     fotoapp_photographer_amount = fields.Monetary(string='Monto para fotógrafo', currency_field='currency_id', copy=False)
+    download_token = fields.Char(string='Token descarga FotoApp', copy=False)
+    download_token_expires_at = fields.Datetime(string='Expira link descarga', copy=False)
+    download_email_sent = fields.Boolean(string='Email descarga enviado', default=False, copy=False)
 
     def action_confirm(self):
         res = super().action_confirm()
@@ -143,3 +148,45 @@ class SaleOrder(models.Model):
                 'continuar.'
             ))
         return photo_lines[:1].foto_photographer_id
+
+    def _fotoapp_ensure_download_token(self, validity_days=30):
+        for order in self:
+            if order.download_token and order.download_token_expires_at and order.download_token_expires_at > fields.Datetime.now():
+                continue
+            token = secrets.token_urlsafe(32)
+            expires_at = fields.Datetime.now() + relativedelta(days=validity_days)
+            order.write({
+                'download_token': token,
+                'download_token_expires_at': expires_at,
+                'download_email_sent': False,
+            })
+        return True
+
+    def _fotoapp_send_download_email(self):
+        base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
+        ICP = self.env['ir.config_parameter'].sudo()
+        default_from = ICP.get_param('mail.default.from')
+        fallback_from = self.env.company.email or self.env.user.email_formatted or default_from
+        for order in self:
+            if not order.partner_id.email:
+                continue
+            order._fotoapp_ensure_download_token()
+            if order.download_email_sent:
+                continue
+            link = f"{base_url}/fotoapp/public_download/{order.download_token}"
+            body = _(
+                "Hola,<br/>Tu pago fue confirmado. Descargá tus fotos desde este enlace (válido 30 días): "
+                "<a href='%(link)s'>%(link)s</a>",
+                link=link,
+            )
+            mail_values = {
+                'subject': _('Tus fotos están listas'),
+                'body_html': body,
+                'email_to': order.partner_id.email,
+                'author_id': self.env.user.partner_id.id,
+                'email_from': default_from or fallback_from,
+            }
+            mail = self.env['mail.mail'].sudo().create(mail_values)
+            mail.send()
+            order.write({'download_email_sent': True})
+        return True

@@ -11,3 +11,6 @@ from . import photographer_orders
 from . import photographer_debts
 from . import plan
 from . import order_portal
+from . import manual_payment
+from . import checkout_guest
+from . import download
