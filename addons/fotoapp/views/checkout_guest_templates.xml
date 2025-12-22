@@ -16,5 +16,18 @@
         </div>
       </t>
     </template>
+
+    <template id="guest_checkout_address_minimal" name="FotoApp Guest Checkout Minimal" inherit_id="website_sale.address">
+      <!-- Esto oculta los campos de dirección para carritos de invitados -->
+      <xpath expr="//form[@action='/shop/address/submit']//h4[hasclass('mb-1')][1]" position="attributes">
+        <attribute name="t-if">not is_anonymous_cart</attribute>
+      </xpath>
+
+      <!-- Esto oculta el campo de nombre completo para carritos de invitados -->
+      <xpath expr="//div[@id='div_name']/ancestor::div[hasclass('row')][1]" position="attributes">
+        <attribute name="t-if">not is_anonymous_cart</attribute>
+      </xpath>
+    </template> 
+    
   </data>
 </odoo>
