@@ -1,3 +1,6 @@
-# dependencias de python necesarias para fotoapp
-pillow>=10.3.0
-requests>=2.31.0
+# dependencias de python necesarias para fotoapp y su ecosistema
+pillow>=10.3.0          # edición y watermarking (Image, ImageDraw, ImageFont)
+requests>=2.31.0        # llamadas externas a Mercado Pago y APIs adicionales
+python-dateutil>=2.8.2  # usos de relativedelta en modelos y tests
+Werkzeug>=2.2.0          # requiere el backend y redirecciones de portals
+psycopg2-binary>=2.9.8  # driver para conectar a Postgres 15 desde Odoo
