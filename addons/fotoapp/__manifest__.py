@@ -49,7 +49,9 @@
         'views/order_templates.xml',
         'views/manual_payment_templates.xml',
         'views/checkout_guest_templates.xml',
+        'views/checkout_guest_payment.xml',
         'views/res_config_settings_views.xml',
+        'views/assets.xml',
     ],
 
     'license': 'AGPL-3',
