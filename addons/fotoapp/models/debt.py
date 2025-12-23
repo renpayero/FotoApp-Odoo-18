@@ -170,6 +170,7 @@ class FotoappDebt(models.Model):
                 LOGGER.warning('No se pudo determinar la cuenta contable para la deuda %s.', debt.id)
                 continue
             line_vals = debt._prepare_invoice_line_vals(product, account)
+            document_type = debt._get_default_document_type(journal)
             invoice_vals = {
                 'move_type': 'out_invoice',
                 'partner_id': debt.partner_id.id,
@@ -183,12 +184,32 @@ class FotoappDebt(models.Model):
                 'payment_reference': debt.name,
                 'invoice_line_ids': [Command.create(line_vals)],
             }
+            if document_type:
+                invoice_vals['l10n_latam_document_type_id'] = document_type.id
             invoice = AccountMove.create(invoice_vals)
             invoice.action_post()
             debt.write({'invoice_id': invoice.id})
             debt.message_post(body=_('Factura %s generada automáticamente.') % (invoice.display_name,))
             created |= invoice
         return created
+
+    def _get_default_document_type(self, journal):
+        """Pick a valid LATAM document type when the journal requires it."""
+        if not getattr(journal, 'l10n_latam_use_documents', False):
+            return False
+
+        DocType = self.env['l10n_latam.document.type']
+        country_id = journal.company_id.country_id.id if journal.company_id else False
+
+        journal_docs = getattr(journal, 'l10n_latam_document_type_ids', DocType)
+        candidates = journal_docs if journal_docs else DocType
+
+        domain = [('internal_type', '=', 'invoice')]
+        if country_id:
+            domain.append(('country_id', '=', country_id))
+
+        doc_type = candidates.search(domain, limit=1)
+        return doc_type
 
     @api.model
     def fotoapp_cron_invoice_pending_debts(self, limit=100):

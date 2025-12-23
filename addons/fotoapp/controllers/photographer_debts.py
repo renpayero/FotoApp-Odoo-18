@@ -50,6 +50,26 @@ class PhotographerDebtController(PhotographerPortalMixin, http.Controller):
         if not order:
             return request.redirect('/shop/cart')
 
+        # Ensure order is bound to the photographer partner and website/pricelist so the cart can display it
+        order_vals = {}
+        if not order.partner_id:
+            order_vals.update({
+                'partner_id': partner.id,
+                'partner_invoice_id': partner.id,
+                'partner_shipping_id': partner.id,
+            })
+        if not order.website_id:
+            order_vals['website_id'] = request.website.id
+        if not order.pricelist_id and request.website.get_current_pricelist():
+            order_vals['pricelist_id'] = request.website.get_current_pricelist().id
+        if order_vals:
+            order.sudo().write(order_vals)
+
+        # Ensure the cart session points to the order we are using
+        request.session['sale_order_id'] = order.id
+        if order.pricelist_id:
+            request.session['website_sale_current_pl'] = order.pricelist_id.id
+
         product_variant = self._get_debt_product_variant()
         if not product_variant:
             _logger.error('No se pudo encontrar el producto de renovación para registrar la deuda.')
@@ -71,12 +91,67 @@ class PhotographerDebtController(PhotographerPortalMixin, http.Controller):
             'sale_order_id': order.id,
             'sale_order_line_id': line.id,
         })
+        _logger.info('FotoApp debt added to cart: debt_id=%s order_id=%s line_id=%s user=%s', debt.id, order.id, line.id, request.env.user.id)
         return request.redirect('/shop/cart')
 
     def _get_debt_product_variant(self):
-        template = request.env.ref('fotoapp.product_plan_renewal_template', raise_if_not_found=False)
-        if not template:
-            return False
+        # Fetch product template with sudo to avoid portal read restrictions
+        imd = request.env['ir.model.data'].sudo()
+        ProductTemplate = request.env['product.template'].sudo()
+        template = False
+
+        xmlid_rec = imd.search([('module', '=', 'fotoapp'), ('name', '=', 'product_plan_renewal_template')], limit=1)
+        if xmlid_rec:
+            model = xmlid_rec.model
+            res_id = xmlid_rec.res_id
+            template = request.env[model].sudo().browse(res_id) if model else False
+        else:
+            try:
+                _, _, model, res_id = imd._xmlid_lookup('fotoapp.product_plan_renewal_template')
+                template = request.env[model].sudo().browse(res_id)
+            except ValueError:
+                template = False
+
+        if not template or not template.exists():
+            # Create or recreate the renewal template if missing, and bind xmlid without duplicating
+            template_vals = {
+                'name': 'Renovación plan Fotógrafo',
+                'list_price': 0.0,
+                'invoice_policy': 'order',
+                'sale_ok': True,
+                'purchase_ok': False,
+                'taxes_id': [(5, 0, 0)],
+                'company_id': False,
+                'website_published': True,
+                'description_sale': 'Renovación mensual del plan de fotógrafo',
+            }
+            if 'detailed_type' in ProductTemplate._fields:
+                template_vals['detailed_type'] = 'service'
+            elif 'type' in ProductTemplate._fields:
+                template_vals['type'] = 'service'
+            template = ProductTemplate.create(template_vals)
+
+            if xmlid_rec:
+                xmlid_rec.sudo().write({'model': 'product.template', 'res_id': template.id})
+            else:
+                imd.create({
+                    'name': 'product_plan_renewal_template',
+                    'module': 'fotoapp',
+                    'model': 'product.template',
+                    'res_id': template.id,
+                    'noupdate': True,
+                })
+
+        # Ensure the renewal product is visible and sellable on website for portal users
+        publish_vals = {}
+        if 'website_published' in template._fields and not template.website_published:
+            publish_vals['website_published'] = True
+        if 'sale_ok' in template._fields and not template.sale_ok:
+            publish_vals['sale_ok'] = True
+        if publish_vals:
+            template.write(publish_vals)
+
         if template.product_variant_id:
-            return template.product_variant_id
+            return template.product_variant_id.sudo()
+
         return request.env['product.product'].sudo().search([('product_tmpl_id', '=', template.id)], limit=1)
